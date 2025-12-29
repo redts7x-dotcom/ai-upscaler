@@ -1,5 +1,4 @@
 export const runtime = 'edge';
-import { NextResponse } from "next/server";
 
 export async function POST(req) {
   try {
@@ -7,47 +6,51 @@ export async function POST(req) {
     const image = formData.get("image");
     const scale = parseInt(formData.get("scale")) || 2;
 
-    if (!image) return NextResponse.json({ error: "لم يتم اختيار صورة" }, { status: 400 });
+    if (!image) return new Response(JSON.stringify({ error: "لم يتم استلام صورة" }), { status: 400 });
 
     const arrayBuffer = await image.arrayBuffer();
-    const base64String = Buffer.from(arrayBuffer).toString('base64');
+    const base64String = btoa(new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), ""));
     const dataUrl = `data:${image.type};base64,${base64String}`;
 
-    // إرسال الطلب لمحرك Real-ESRGAN الرسمي والفعال
-    const response = await fetch("https://api.replicate.com/v1/predictions", {
+    // طلب إنشاء التوقع (Prediction) من Replicate مباشرة
+    const startResponse = await fetch("https://api.replicate.com/v1/predictions", {
       method: "POST",
       headers: {
         "Authorization": `Token ${process.env.REPLICATE_API_TOKEN}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        // هذا الإصدار مستقر وعام (Public)
-        version: "f121d640fb22379685a4a139c693968e40f340263bc859cd689408269e160a2b",
-        input: { image: dataUrl, upscale: scale },
+        // نسخة NightmareAI المستقرة جداً
+        version: "42fed1c497414110d21ff5962f01560397f196acbea31cf40e313f2c37f1938d",
+        input: { image: dataUrl, upscale: scale, face_enhance: true },
       }),
     });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      return NextResponse.json({ error: errorData.detail || "فشل المحرك" }, { status: response.status });
+    const prediction = await startResponse.json();
+
+    if (!startResponse.ok) {
+      return new Response(JSON.stringify({ error: `Replicate Error: ${prediction.detail || 'رفض الطلب'}` }), { status: startResponse.status });
     }
 
-    const prediction = await response.json();
-    
-    // انتظار النتيجة
+    // مراقبة النتيجة
     let result = prediction;
     let attempts = 0;
     while (result.status !== "succeeded" && result.status !== "failed" && attempts < 40) {
-      await new Promise((r) => setTimeout(r, 2000));
-      const res = await fetch(`https://api.replicate.com/v1/predictions/${prediction.id}`, {
+      await new Promise(r => setTimeout(r, 2000));
+      const pollResponse = await fetch(`https://api.replicate.com/v1/predictions/${prediction.id}`, {
         headers: { "Authorization": `Token ${process.env.REPLICATE_API_TOKEN}` },
       });
-      result = await res.json();
+      result = await pollResponse.json();
       attempts++;
     }
 
-    return NextResponse.json({ result: result.output });
-  } catch (error) {
-    return NextResponse.json({ error: "خطأ في السيرفر" }, { status: 500 });
+    if (result.status === "succeeded") {
+      return new Response(JSON.stringify({ result: result.output }), { status: 200 });
+    } else {
+      return new Response(JSON.stringify({ error: `فشلت المعالجة: ${result.error || 'خطأ مجهول'}` }), { status: 500 });
+    }
+
+  } catch (err) {
+    return new Response(JSON.stringify({ error: `Server Crash: ${err.message}` }), { status: 500 });
   }
 }

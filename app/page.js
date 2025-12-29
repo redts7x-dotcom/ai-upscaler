@@ -20,11 +20,18 @@ export default function Home() {
     try {
       const res = await fetch('/api/upscale', { method: 'POST', body: formData });
       const data = await res.json();
-      if (data.result) setResult(data.result);
-      else alert("عذراً: " + (data.error || "تأكد من شحن الرصيد في Replicate"));
-    } catch (e) { alert("خطأ في الاتصال"); } 
-    finally { setLoading(false); }
-  };
+      
+      if (res.ok && data.result) {
+        setResult(data.result);
+      } else {
+        // هنا سيظهر لك الخطأ الحقيقي القادم من Replicate
+        alert("فشل المحرك: " + (data.error || "خطأ غير معروف"));
+      }
+    } catch (e) {
+      alert("خطأ في الشبكة: تعذر الوصول للسيرفر");
+    } finally {
+      setLoading(false);
+    }
 
   const { getRootProps, getInputProps } = useDropzone({
     onDrop: (f) => { setFile(f[0]); setResult(null); },
