@@ -7,25 +7,50 @@ export default function Home() {
   const [file, setFile] = useState(null);
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [downloading, setDownloading] = useState(false); // حالة جديدة لزر التحميل
+
+  // --- 1. دالة التحميل الجديدة (لسحب الجودة الأصلية) ---
+  const downloadImage = async (url) => {
+    setDownloading(true);
+    try {
+      // جلب الملف الأصلي من رابط Replicate كبيانات خام (Blob)
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      
+      // إنشاء رابط مخفي للتحميل
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = `upscaled_image_${Date.now()}.png`; // اسم الملف عند الحفظ
+      document.body.appendChild(link);
+      link.click();
+      
+      // تنظيف الذاكرة بعد التحميل
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (error) {
+      console.error("فشل التحميل، جاري الفتح في نافذة جديدة", error);
+      window.open(url, '_blank');
+    }
+    setDownloading(false);
+  };
+  // -------------------------------------------------------
 
   const onDrop = async (acceptedFiles) => {
     const f = acceptedFiles[0];
     if (!f) return;
     
-    // عرض الصورة للمستخدم قبل الرفع
     setFile(URL.createObjectURL(f));
     setResult(null);
     setLoading(true);
 
-    // --- التعديل هنا: نرسل الصورة كملف FormData ---
     const formData = new FormData();
-    formData.append("image", f); // وضعنا الملف داخل مظروف
-    // ---------------------------------------------
+    formData.append("image", f);
 
     try {
       const res = await fetch('/api/upscale', {
         method: 'POST',
-        body: formData, // إرسال المظروف (الملف) مباشرة
+        body: formData,
       });
 
       const data = await res.json();
@@ -82,12 +107,20 @@ export default function Home() {
 
           <div className="text-center">
             <p className="mb-2 text-blue-400 font-bold">بعد التكبير (AI)</p>
+            {/* عرض الصورة فقط */}
             <img src={result} className="max-h-80 rounded-lg border-2 border-blue-500 shadow-[0_0_30px_rgba(59,130,246,0.5)]"/>
             
             <div className="mt-6 flex gap-4 justify-center">
-                <a href={result} download="upscaled_image.png" className="bg-white text-black px-6 py-2 rounded-full font-bold hover:bg-gray-200 cursor-pointer transition-transform hover:scale-105">
-                  تحميل
-                </a>
+                {/* --- 2. تم تغيير الزر هنا لاستخدام الدالة الجديدة --- */}
+                <button 
+                  onClick={() => downloadImage(result)} 
+                  disabled={downloading}
+                  className={`bg-white text-black px-6 py-2 rounded-full font-bold hover:bg-gray-200 cursor-pointer transition-transform hover:scale-105 flex items-center gap-2 ${downloading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  {downloading ? 'جاري التحميل...' : 'تحميل الجودة الأصلية'}
+                </button>
+                {/* ------------------------------------------------ */}
+
                 <button onClick={() => {setResult(null); setFile(null);}} className="text-gray-400 hover:text-white px-4">
                   صورة جديدة
                 </button>
