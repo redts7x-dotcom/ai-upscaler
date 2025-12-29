@@ -20,9 +20,14 @@ export default function Home() {
     try {
       const res = await fetch('/api/upscale', { method: 'POST', body: formData });
       const data = await res.json();
-      if (res.ok && data.result) setResult(data.result);
-      else alert("تنبيه: " + (data.error || "خطأ غير محدد"));
-    } catch (e) { alert("خطأ في الاتصال بالسيرفر"); } 
+      
+      if (!res.ok) throw new Error(data.error || "فشل الاتصال");
+      if (data.result) setResult(data.result);
+      else throw new Error("لم تصل نتيجة");
+
+    } catch (e) { 
+      alert("خطأ: " + e.message); 
+    } 
     finally { setLoading(false); }
   };
 
@@ -50,11 +55,11 @@ export default function Home() {
       </nav>
 
       <div style={{ maxWidth: '850px', margin: '0 auto', padding: '80px 20px', textAlign: 'center' }}>
-        <h1 style={{ fontSize: '4.5rem', fontWeight: '900', marginBottom: '15px', background: 'linear-gradient(to bottom, #fff, #999)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>سحر التحسين.</h1>
-        <p style={{ color: '#a1a1a6', fontSize: '1.3rem', marginBottom: '50px' }}>ارفع جودة صورك إلى أبعاد خيالية باستخدام ذكاء OBAD.</p>
+        <h1 style={{ fontSize: '4.5rem', fontWeight: '900', marginBottom: '15px', background: 'linear-gradient(to bottom, #fff, #999)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>سحر التحسين A100.</h1>
+        <p style={{ color: '#a1a1a6', fontSize: '1.3rem', marginBottom: '50px' }}>ارفع جودة صورك باستخدام أقوى موديل متاح.</p>
 
         <div style={{ display: 'inline-flex', background: 'rgba(255,255,255,0.05)', padding: '5px', borderRadius: '16px', marginBottom: '50px', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)' }}>
-          {[ {l:'HD', v:2}, {l:'4K', v:4}, {l:'8K', v:8} ].map(q => (
+          {[ {l:'HD (2x)', v:2}, {l:'4K (4x)', v:4}, {l:'8K (8x)', v:8} ].map(q => (
             <button key={q.v} onClick={() => setScale(q.v)} style={{ padding: '10px 35px', borderRadius: '12px', border: 'none', color: scale === q.v ? '#000' : '#fff', background: scale === q.v ? '#fff' : 'transparent', cursor: 'pointer', fontWeight: '700', transition: '0.4s' }}>{q.l}</button>
           ))}
         </div>
@@ -69,7 +74,7 @@ export default function Home() {
           <button onClick={handleUpscale} style={{ marginTop: '40px', backgroundColor: '#fff', color: '#000', padding: '18px 60px', borderRadius: '40px', border: 'none', cursor: 'pointer', fontWeight: '800', fontSize: '1.1rem' }}>ابدأ التحسين الآن</button>
         )}
 
-        {loading && <p style={{ marginTop: '40px', color: '#fff', fontSize: '1.1rem' }}>جاري المعالجة بواسطة OBAD AI... انتظر قليلاً ⏳</p>}
+        {loading && <p style={{ marginTop: '40px', color: '#fff', fontSize: '1.1rem' }}>جاري المعالجة... يرجى الانتظار ⏳</p>}
 
         <AnimatePresence>
           {result && (
