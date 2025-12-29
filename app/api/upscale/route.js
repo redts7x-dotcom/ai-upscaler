@@ -25,16 +25,21 @@ export async function POST(request) {
     console.log("جاري التكبير باستخدام المودل الجديد (A100)...");
 
     // 2. استخدام مودل daanelson/real-esrgan-a100
-    const output = await replicate.run(
-      "daanelson/real-esrgan-a100:f94d7ed4a1f7e1ffed0d51e4089e4911609d5eeee5e874ef323d2c7562624bed",
-      {
-        input: {
-          image: image,
-          scale: 4,           // مقدار التكبير (الافتراضي 4 وتقدر تخليه 2)
-          face_enhance: true  // تحسين الوجه (تقدر تخليها false لو تبي حدة فقط بدون تجميل)
-        }
-      }
-    );
+    // ... بداية الكود ...
+
+// تشغيل الموديل الجديد (A100) الذي اخترته
+const output = await replicate.run(
+  "daanelson/real-esrgan-a100:f94d7ed4a1f7e1ffed0d51e4089e4911609d5eeee5e874ef323d2c7562624bed",
+  {
+    input: {
+      image: image,      // الصورة التي رفعها المستخدم
+      scale: 4,          // درجة التكبير (يمكنك تغييرها)
+      face_enhance: true // تفعيل تحسين الوجوه
+    }
+  }
+);
+
+// ... تكملة الكود ...
 
     return NextResponse.json({ result: output });
 
