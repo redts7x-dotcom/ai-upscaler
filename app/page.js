@@ -4,7 +4,15 @@ import { useDropzone } from 'react-dropzone';
 import { motion, AnimatePresence, useMotionValue } from 'framer-motion';
 import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs";
 
-// --- مكوّن مقارنة قبل وبعد (جديد) ---
+// --- تحميل خط Cairo من Google Fonts ---
+const fontImport = (
+  <style jsx global>{`
+    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;700;900&display=swap');
+    body { font-family: 'Cairo', sans-serif !important; }
+  `}</style>
+);
+
+// --- مكون المقارنة (قبل وبعد) ---
 const BeforeAfterComparison = ({ before, after }) => {
   const [sliderPosition, setSliderPosition] = useState(50);
   const [isResizing, setIsResizing] = useState(false);
@@ -32,36 +40,24 @@ const BeforeAfterComparison = ({ before, after }) => {
     };
   }, []);
 
-  const labelStyle = {
-    position: 'absolute', top: '20px', padding: '6px 16px', borderRadius: '20px',
-    background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(10px)', color: '#fff', fontWeight: 'bold', zIndex: 10
-  };
-
   return (
     <div ref={containerRef} onMouseMove={handleMouseMove} onTouchMove={handleTouchMove} onMouseDown={handleMove.bind(null, containerRef.current?.getBoundingClientRect().left + (sliderPosition / 100) * containerRef.current?.getBoundingClientRect().width)}
-         style={{ 
-           position: 'relative', width: '100%', height: '450px', borderRadius: '40px', overflow: 'hidden', 
-           cursor: 'col-resize', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(20px)'
-         }}>
-      {/* صورة "بعد" (الخلفية) */}
+         style={{ position: 'relative', width: '100%', height: '450px', borderRadius: '40px', overflow: 'hidden', cursor: 'col-resize', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(20px)' }}>
       <img src={after} alt="After" style={{ position: 'absolute', top:0, left:0, width: '100%', height: '100%', objectFit: 'contain' }} />
-      <span style={{ ...labelStyle, right: '20px' }}>بعد</span>
-
-      {/* صورة "قبل" (فوقها ويتم قصها) */}
+      <div style={{ position: 'absolute', top: '20px', right: '20px', padding: '5px 15px', borderRadius: '20px', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(5px)', fontSize: '0.9rem', fontWeight: 'bold' }}>بعد</div>
+      
       <div style={{ position: 'absolute', top:0, left:0, width: `${sliderPosition}%`, height: '100%', overflow: 'hidden', borderRight: '2px solid rgba(255,255,255,0.8)' }}>
         <img src={before} alt="Before" style={{ width: containerRef.current?.clientWidth, height: '100%', objectFit: 'contain' }} />
       </div>
-       <span style={{ ...labelStyle, left: '20px' }}>قبل</span>
+      <div style={{ position: 'absolute', top: '20px', left: '20px', padding: '5px 15px', borderRadius: '20px', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(5px)', fontSize: '0.9rem', fontWeight: 'bold' }}>قبل</div>
 
-      {/* مقبض السلايدر */}
-      <div style={{ position: 'absolute', top: '50%', left: `${sliderPosition}%`, transform: 'translate(-50%, -50%)', width: '30px', height: '30px', background: 'rgba(255,255,255,0.9)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 15px rgba(0,0,0,0.3)', zIndex: 20 }}>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline><polyline points="9 18 3 12 9 6"></polyline><polyline points="21 18 15 12 21 6"></polyline></svg>
+      <div style={{ position: 'absolute', top: '50%', left: `${sliderPosition}%`, transform: 'translate(-50%, -50%)', width: '32px', height: '32px', background: '#fff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 20px rgba(0,0,0,0.5)', zIndex: 20 }}>
+        <svg width="16" height="16" viewBox="0 0 24 24" stroke="#000" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline><polyline points="9 18 3 12 9 6"></polyline></svg>
       </div>
     </div>
   );
 };
 
-// --- المكون الرئيسي ---
 export default function Home() {
   const [file, setFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
@@ -71,13 +67,11 @@ export default function Home() {
   const [scale, setScale] = useState(2);
   const [dominantColor, setDominantColor] = useState('rgba(0, 123, 255, 0.2)');
 
-  // --- إعدادات حركة الماوس المباشرة (بدون تأخير) ---
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
 
   useEffect(() => {
     const handleMouseMove = (e) => {
-      // تحديث مباشر وفوري لموقع الماوس
       mouseX.set(e.clientX - 250);
       mouseY.set(e.clientY - 250);
     };
@@ -85,7 +79,6 @@ export default function Home() {
     return () => window.removeEventListener("mousemove", handleMouseMove);
   }, [mouseX, mouseY]);
 
-  // --- دالة الضغط القسري (كما هي) ---
   const compressImage = async (imageFile) => {
     const MAX_SIZE = 4 * 1024 * 1024; 
     if (imageFile.size <= MAX_SIZE) return imageFile;
@@ -106,7 +99,6 @@ export default function Home() {
     return currentFile;
   };
 
-  // --- استخراج اللون (كما هو) ---
   useEffect(() => {
     if (!previewUrl) return;
     const img = new Image(); img.crossOrigin = "Anonymous"; img.src = previewUrl;
@@ -159,81 +151,111 @@ export default function Home() {
   });
 
   return (
-    <main dir="rtl" style={{ 
-      minHeight: '100vh', backgroundColor: '#000', color: '#fff', position: 'relative', overflow: 'hidden',
-      fontFamily: 'system-ui, sans-serif', cursor: 'default'
-    }}>
+    <main dir="rtl" style={{ minHeight: '100vh', backgroundColor: '#050505', color: '#fff', position: 'relative', overflowX: 'hidden' }}>
+      {fontImport}
       
-      {/* إضاءة تتبع الماوس (مباشرة وبدون تأخير) */}
-      <motion.div 
-        style={{ 
-          x: mouseX, y: mouseY, // استخدام القيم المباشرة بدلاً من spring
-          position: 'fixed', top: 0, left: 0, width: '500px', height: '500px', 
-          backgroundColor: dominantColor, borderRadius: '50%', filter: 'blur(120px)', opacity: 0.6, zIndex: 0, pointerEvents: 'none' 
-        }} 
-      />
+      {/* إضاءة الماوس */}
+      <motion.div style={{ x: mouseX, y: mouseY, position: 'fixed', top: 0, left: 0, width: '500px', height: '500px', backgroundColor: dominantColor, borderRadius: '50%', filter: 'blur(130px)', opacity: 0.5, zIndex: 0, pointerEvents: 'none' }} />
 
-      <nav style={{ 
-        display: 'flex', justifyContent: 'space-between', padding: '0 40px', height: '70px', alignItems: 'center',
-        backdropFilter: 'blur(30px)', backgroundColor: 'rgba(255,255,255,0.02)',
-        borderBottom: '1px solid rgba(255,255,255,0.1)', position: 'sticky', top: 0, zIndex: 100
-      }}>
-        <div style={{ fontSize: '1.6rem', fontWeight: '900', color: '#fff' }}>OBAD</div>
-        <div><SignedOut><SignInButton mode="modal"><button style={{ background: 'rgba(255,255,255,0.1)', color: '#fff', padding: '8px 25px', borderRadius: '40px', border: '1px solid rgba(255,255,255,0.2)', cursor: 'pointer' }}>دخول</button></SignInButton></SignedOut><SignedIn><UserButton afterSignOutUrl="/" /></SignedIn></div>
+      <nav style={{ display: 'flex', justifyContent: 'space-between', padding: '0 5%', height: '80px', alignItems: 'center', backdropFilter: 'blur(20px)', backgroundColor: 'rgba(255,255,255,0.01)', borderBottom: '1px solid rgba(255,255,255,0.08)', position: 'sticky', top: 0, zIndex: 100 }}>
+        <div style={{ fontSize: '1.8rem', fontWeight: '900', letterSpacing: '-1px' }}>OBAD<span style={{color: '#2997ff'}}>.AI</span></div>
+        <div><SignedOut><SignInButton mode="modal"><button style={{ background: 'rgba(255,255,255,0.08)', color: '#fff', padding: '10px 30px', borderRadius: '50px', border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer', transition: '0.3s' }}>دخول</button></SignInButton></SignedOut><SignedIn><UserButton afterSignOutUrl="/" /></SignedIn></div>
       </nav>
 
-      <div style={{ position: 'relative', zIndex: 10, maxWidth: '1300px', margin: '0 auto', padding: '60px 20px', textAlign: 'center' }}>
-        <h1 style={{ fontSize: '4.5rem', fontWeight: '900', marginBottom: '15px', background: 'linear-gradient(to bottom, #fff, #999)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>سحر التحسين A100.</h1>
-        <p style={{ color: '#a1a1a6', fontSize: '1.3rem', marginBottom: '40px' }}>ارفع جودة صورك وقارن النتيجة قبل وبعد.</p>
+      <div style={{ position: 'relative', zIndex: 10, maxWidth: '1200px', margin: '0 auto', padding: '80px 20px', textAlign: 'center' }}>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }}>
+          <h1 style={{ fontSize: '4rem', fontWeight: '900', marginBottom: '20px', lineHeight: '1.1' }}>
+            حوّل صورك إلى <br />
+            <span style={{ background: 'linear-gradient(90deg, #fff, #999)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>تحفة فنية بدقة 8K</span>
+          </h1>
+          <p style={{ color: '#888', fontSize: '1.2rem', marginBottom: '50px', maxWidth: '600px', margin: '0 auto 50px auto' }}>تقنية A100 المتقدمة تعيد بناء التفاصيل المفقودة، تزيد الدقة، وتصحح الألوان بلمسة واحدة.</p>
+        </motion.div>
 
-        <div style={{ display: 'inline-flex', background: 'rgba(255,255,255,0.05)', padding: '5px', borderRadius: '16px', marginBottom: '40px', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)' }}>
-          {[ {l:'HD (2x)', v:2}, {l:'4K (4x)', v:4}, {l:'8K (8x)', v:8} ].map(q => (
-            <button key={q.v} onClick={() => setScale(q.v)} style={{ padding: '10px 35px', borderRadius: '12px', border: 'none', color: scale === q.v ? '#000' : '#fff', background: scale === q.v ? '#fff' : 'transparent', cursor: 'pointer', fontWeight: '700', transition: '0.4s' }}>{q.l}</button>
+        {/* أزرار الجودة */}
+        <div style={{ display: 'inline-flex', background: 'rgba(255,255,255,0.03)', padding: '6px', borderRadius: '20px', marginBottom: '50px', border: '1px solid rgba(255,255,255,0.08)' }}>
+          {[ {l:'HD', v:2}, {l:'4K', v:4}, {l:'8K', v:8} ].map(q => (
+            <button key={q.v} onClick={() => setScale(q.v)} style={{ padding: '12px 40px', borderRadius: '16px', border: 'none', color: scale === q.v ? '#000' : '#888', background: scale === q.v ? '#fff' : 'transparent', cursor: 'pointer', fontWeight: '700', transition: '0.3s' }}>{q.l}</button>
           ))}
         </div>
 
         <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'start', gap: '40px' }}>
           
-          {/* قسم الإدخال */}
+          {/* قسم الرفع والمعاينة */}
           <div style={{ flex: '1 1 500px', maxWidth: '600px' }}>
             <div {...getRootProps()} style={{ 
-              border: `1px solid ${isDragActive ? '#fff' : 'rgba(255,255,255,0.1)'}`, borderRadius: '40px', 
-              backgroundColor: 'rgba(255,255,255,0.03)', backdropFilter: 'blur(25px)', cursor: 'pointer', 
-              height: '450px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' 
+              border: `1px dashed ${isDragActive ? '#2997ff' : 'rgba(255,255,255,0.2)'}`, borderRadius: '40px', 
+              backgroundColor: 'rgba(255,255,255,0.02)', cursor: 'pointer', height: '450px', 
+              display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', overflow: 'hidden', position: 'relative', transition: '0.3s'
             }}>
               <input {...getInputProps()} />
-              {previewUrl ? <img src={previewUrl} style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '10px' }} /> : 
-                <>
-                  <div style={{ fontSize: '60px', marginBottom: '20px' }}>✨</div>
-                  <p style={{ fontSize: '1.2rem', color: '#a1a1a6' }}>اسحب الصورة هنا</p>
-                </>}
+              
+              {/* تأثير المسح الضوئي (Scanning) أثناء التحميل */}
+              {loading && (
+                <motion.div 
+                  style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '2px', background: 'linear-gradient(90deg, transparent, #2997ff, transparent)', zIndex: 20, boxShadow: '0 0 20px #2997ff' }}
+                  animate={{ top: ['0%', '100%', '0%'] }}
+                  transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+                />
+              )}
+
+              {previewUrl ? <img src={previewUrl} style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '10px', opacity: loading ? 0.5 : 1 }} /> : 
+                <div style={{textAlign: 'center'}}>
+                  <div style={{ fontSize: '50px', marginBottom: '20px', filter: 'grayscale(1)' }}>📷</div>
+                  <p style={{ fontSize: '1.1rem', color: '#fff', fontWeight: 'bold' }}>اضغط لرفع الصورة</p>
+                  <p style={{ fontSize: '0.9rem', color: '#666' }}>أو اسحب الملف هنا</p>
+                </div>}
             </div>
+
             {file && !loading && (
-              <button onClick={handleUpscale} style={{ marginTop: '30px', width: '100%', backgroundColor: '#fff', color: '#000', padding: '18px 0', borderRadius: '40px', border: 'none', cursor: 'pointer', fontWeight: '800', fontSize: '1.1rem' }}>
-                {result ? `إعادة التحسين (${scale}x)` : 'ابدأ التحسين الآن'}
+              <button onClick={handleUpscale} style={{ marginTop: '25px', width: '100%', backgroundColor: '#fff', color: '#000', padding: '20px 0', borderRadius: '50px', border: 'none', cursor: 'pointer', fontWeight: '800', fontSize: '1.1rem', boxShadow: '0 10px 30px rgba(255,255,255,0.1)' }}>
+                {result ? `✨ إعادة التحسين (${scale}x)` : '✨ ابدأ المعالجة السحرية'}
               </button>
             )}
-            {loading && <p style={{ marginTop: '30px', color: '#fff', fontSize: '1.1rem' }}>جاري المعالجة... ⏳</p>}
+            {loading && <p style={{ marginTop: '25px', color: '#888', fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}><span style={{width: '10px', height: '10px', background: '#2997ff', borderRadius: '50%', display: 'inline-block'}}></span> جاري التحليل والمعالجة بدقة عالية...</p>}
           </div>
 
-          {/* قسم النتيجة (مقارنة قبل وبعد) */}
+          {/* قسم النتيجة */}
           <AnimatePresence>
             {result && (
-              <motion.div initial={{ opacity: 0, x: -50 }} animate={{ opacity: 1, x: 0 }} style={{ flex: '1 1 500px', maxWidth: '600px' }}>
-                
-                {/* استخدام مكون المقارنة الجديد هنا */}
+              <motion.div initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }} style={{ flex: '1 1 500px', maxWidth: '600px' }}>
                 <BeforeAfterComparison before={previewUrl} after={result} />
-                
                 <button onClick={() => forceDownload(result)} disabled={downloading}
-                  style={{ marginTop: '30px', width: '100%', backgroundColor: '#2997ff', color: '#fff', padding: '18px 0', borderRadius: '40px', border: 'none', cursor: downloading ? 'not-allowed' : 'pointer', fontWeight: '800', fontSize: '1.1rem', opacity: downloading ? 0.7 : 1 }}>
-                  {downloading ? 'جاري التنزيل...' : 'تحميل النتيجة النهائية'}
+                  style={{ marginTop: '25px', width: '100%', backgroundColor: '#2997ff', color: '#fff', padding: '20px 0', borderRadius: '50px', border: 'none', cursor: downloading ? 'not-allowed' : 'pointer', fontWeight: '800', fontSize: '1.1rem', opacity: downloading ? 0.7 : 1, boxShadow: '0 10px 30px rgba(41, 151, 255, 0.2)' }}>
+                  {downloading ? 'جاري التحميل...' : 'تحميل النسخة النهائية 📥'}
                 </button>
               </motion.div>
             )}
           </AnimatePresence>
-
         </div>
+
+        {/* --- قسم جديد: كيف يعمل (لإعطاء الطابع الرسمي) --- */}
+        <div style={{ marginTop: '150px', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '80px' }}>
+          <h2 style={{ fontSize: '2rem', fontWeight: 'bold', marginBottom: '50px', color: '#eee' }}>كيف يعمل OBAD.AI؟</h2>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '50px', flexWrap: 'wrap' }}>
+            {[
+              { icon: '📤', title: 'ارفع صورتك', desc: 'يدعم جميع الصيغ حتى الصور الكبيرة ويقوم بضغطها ذكياً.' },
+              { icon: '⚡', title: 'المعالجة السحابية', desc: 'نستخدم سيرفرات A100 لمعالجة البيكسلات وإعادة رسمها.' },
+              { icon: '💎', title: 'نتائج مبهرة', desc: 'احصل على دقة 4K أو 8K بتفاصيل حقيقية وإضاءة مصححة.' }
+            ].map((item, i) => (
+              <div key={i} style={{ flex: '1 1 250px', maxWidth: '300px', padding: '30px', background: 'rgba(255,255,255,0.02)', borderRadius: '30px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                <div style={{ fontSize: '40px', marginBottom: '20px' }}>{item.icon}</div>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 'bold', marginBottom: '10px' }}>{item.title}</h3>
+                <p style={{ color: '#888', fontSize: '0.9rem', lineHeight: '1.6' }}>{item.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
       </div>
+
+      {/* Footer بسيط ورسمي */}
+      <footer style={{ marginTop: '100px', padding: '40px 0', borderTop: '1px solid rgba(255,255,255,0.05)', textAlign: 'center', color: '#666', fontSize: '0.9rem' }}>
+        <p>&copy; {new Date().getFullYear()} OBAD.AI - جميع الحقوق محفوظة.</p>
+        <div style={{ marginTop: '10px', display: 'flex', justifyContent: 'center', gap: '20px' }}>
+          <span style={{ cursor: 'pointer', textDecoration: 'underline' }}>سياسة الخصوصية</span>
+          <span style={{ cursor: 'pointer', textDecoration: 'underline' }}>شروط الاستخدام</span>
+        </div>
+      </footer>
     </main>
   );
 }
