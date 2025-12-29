@@ -14,27 +14,36 @@ export async function POST(request) {
       return NextResponse.json({ error: "لم يتم رفع صورة" }, { status: 400 });
     }
 
-    // --- هذا هو الجزء الذي كان ناقصاً ---
+    // تحويل الصورة لكود يفهمه الذكاء الاصطناعي
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
     const imageBase64 = `data:${file.type};base64,${buffer.toString('base64')}`;
-    // ------------------------------------
 
-    console.log("جاري التكبير باستخدام A100...");
+    console.log("جاري التكبير...");
 
-    const output = await replicate.run(
+    // تشغيل الموديل
+    let output = await replicate.run(
       "daanelson/real-esrgan-a100:f94d7ed4a1f7e1ffed0d51e4089e4911609d5eeee5e874ef323d2c7562624bed",
       {
         input: {
-          image: imageBase64, // الآن سيعمل هذا المتغير لأنه معرف في الأعلى
-          scale: 8,           // جودة عالية
+          image: imageBase64,
+          scale: 8,           
           face_enhance: true,
           tile: 0,
         }
       }
     );
 
-    return NextResponse.json({ result: output });
+    // --- (هذا هو التعديل الجديد لحل مشكلة object Object) ---
+    // إذا كان المخرج مصفوفة (Array)، نأخذ الرابط الأول منها
+    if (Array.isArray(output)) {
+      output = output[0];
+    }
+    // للتأكد أن الرابط نص فقط
+    const finalResult = String(output);
+    // -----------------------------------------------------
+
+    return NextResponse.json({ result: finalResult });
 
   } catch (error) {
     console.error("Error:", error);
