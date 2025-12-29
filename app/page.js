@@ -1,14 +1,18 @@
 "use client";
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useMotionValue } from 'framer-motion';
 import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs";
 
-// --- استيراد الخطوط ---
+// --- استيراد الخطوط + ستايل الماوس الطبيعي ---
 const fontImport = (
   <style jsx global>{`
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;700;900&display=swap');
     body { font-family: 'Cairo', sans-serif !important; background-color: #050505; }
+    /* إجبار المتصفح على استخدام الماوس العادي */
+    * { cursor: auto !important; }
+    button, a, .clickable { cursor: pointer !important; }
+    .slider-handle { cursor: ew-resize !important; }
   `}</style>
 );
 
@@ -27,21 +31,19 @@ const BeforeAfterComparison = ({ before, after }) => {
   }, []);
 
   useEffect(() => {
-    const onMouseUp = () => isDragging.current = false;
-    const onMouseMove = (e) => { if (isDragging.current) handleMove(e.clientX); };
-    const onTouchEnd = () => isDragging.current = false;
-    const onTouchMove = (e) => { if (isDragging.current) handleMove(e.touches[0].clientX); };
+    const stopDrag = () => isDragging.current = false;
+    const doDrag = (e) => { if (isDragging.current) handleMove(e.clientX || e.touches[0].clientX); };
 
-    window.addEventListener('mouseup', onMouseUp);
-    window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('touchend', onTouchEnd);
-    window.addEventListener('touchmove', onTouchMove);
+    window.addEventListener('mouseup', stopDrag);
+    window.addEventListener('touchend', stopDrag);
+    window.addEventListener('mousemove', doDrag);
+    window.addEventListener('touchmove', doDrag);
 
     return () => {
-      window.removeEventListener('mouseup', onMouseUp);
-      window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('touchend', onTouchEnd);
-      window.removeEventListener('touchmove', onTouchMove);
+      window.removeEventListener('mouseup', stopDrag);
+      window.removeEventListener('touchend', stopDrag);
+      window.removeEventListener('mousemove', doDrag);
+      window.removeEventListener('touchmove', doDrag);
     };
   }, [handleMove]);
 
@@ -51,28 +53,19 @@ const BeforeAfterComparison = ({ before, after }) => {
          onTouchStart={(e) => { isDragging.current = true; handleMove(e.touches[0].clientX); }}
          style={{ 
            position: 'relative', width: '100%', height: '500px', borderRadius: '30px', overflow: 'hidden', 
-           background: '#000', border: '1px solid rgba(255,255,255,0.1)', cursor: 'ew-resize', userSelect: 'none'
+           background: '#000', border: '1px solid rgba(255,255,255,0.1)', userSelect: 'none'
          }}>
-      
       <img src={after} alt="After" style={{ position: 'absolute', top:0, left:0, width: '100%', height: '100%', objectFit: 'contain' }} />
       <div style={{ position: 'absolute', top: '20px', left: '20px', padding: '6px 16px', borderRadius: '20px', background: 'rgba(0,0,0,0.7)', color: '#fff', fontSize: '0.9rem', fontWeight: 'bold', pointerEvents: 'none' }}>بعد</div>
 
-      <div style={{ 
-        position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', 
-        clipPath: `inset(0 ${100 - sliderPosition}% 0 0)` 
-      }}>
+      <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', clipPath: `inset(0 ${100 - sliderPosition}% 0 0)` }}>
         <img src={before} alt="Before" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
         <div style={{ position: 'absolute', top: '20px', right: '20px', padding: '6px 16px', borderRadius: '20px', background: 'rgba(0,0,0,0.7)', color: '#fff', fontSize: '0.9rem', fontWeight: 'bold', pointerEvents: 'none' }}>قبل</div>
       </div>
 
-      <div style={{ position: 'absolute', top: 0, bottom: 0, left: `${sliderPosition}%`, width: '2px', background: 'rgba(255,255,255,0.9)' }}>
-        <div className="slider-handle" style={{ 
-          position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', 
-          width: '44px', height: '44px', background: '#fff', borderRadius: '50%', 
-          display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 20px rgba(0,0,0,0.4)'
-        }}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+      <div style={{ position: 'absolute', top: 0, bottom: 0, left: `${sliderPosition}%`, width: '2px', background: 'rgba(255,255,255,0.9)', cursor: 'ew-resize' }}>
+        <div className="slider-handle" style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '40px', height: '40px', background: '#fff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 20px rgba(0,0,0,0.5)' }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/><path d="M9 18l6-6-6-6"/></svg>
         </div>
       </div>
     </div>
@@ -87,49 +80,55 @@ export default function Home() {
   const [downloading, setDownloading] = useState(false);
   const [scale, setScale] = useState(2);
   const [dominantColor, setDominantColor] = useState('rgba(41, 151, 255, 0.1)');
-  const [statusMessage, setStatusMessage] = useState("");
+  const [statusMsg, setStatusMsg] = useState("");
+
+  // --- إضاءة Spotlight مباشرة (بدون تأخير) ---
+  const mouseX = useMotionValue(-500);
+  const mouseY = useMotionValue(-500);
+
+  useEffect(() => {
+    const moveLight = (e) => {
+      // تحريك مباشر وسريع جداً
+      mouseX.set(e.clientX - 400); // 400 هو نصف قطر الإضاءة
+      mouseY.set(e.clientY - 400);
+    };
+    window.addEventListener("mousemove", moveLight);
+    return () => window.removeEventListener("mousemove", moveLight);
+  }, [mouseX, mouseY]);
 
   // --- ضغط الصور القسري ---
   const compressImage = async (imageFile) => {
-    // تركنا مساحة 4 ميجا وهي كافية جداً مع نظام الـ Polling الجديد
-    const MAX_SIZE_MB = 4.0;
-    const MAX_BYTES = MAX_SIZE_MB * 1024 * 1024;
-    
-    if (imageFile.size < MAX_BYTES) return imageFile;
-    setStatusMessage("جاري ضغط الصورة لتقليل حجمها...");
+    // نترك هامش أمان كبير (3.5 ميجا)
+    const MAX_MB = 3.5;
+    if (imageFile.size < MAX_MB * 1024 * 1024) return imageFile;
 
+    setStatusMsg("جاري ضغط الصورة لتناسب السيرفر...");
     let currentFile = imageFile;
     let quality = 0.9;
     let widthRatio = 1.0;
-    let attempts = 0;
-
-    while (currentFile.size > MAX_BYTES && attempts < 10) {
-      currentFile = await new Promise((resolve) => {
+    
+    // محاولة الضغط حتى 10 مرات
+    for (let i = 0; i < 10; i++) {
+      if (currentFile.size <= MAX_MB * 1024 * 1024) break;
+      
+      currentFile = await new Promise(resolve => {
         const img = new Image();
         img.src = URL.createObjectURL(imageFile);
         img.onload = () => {
           const canvas = document.createElement('canvas');
-          let newWidth = img.width * widthRatio;
-          let newHeight = img.height * widthRatio;
+          let w = img.width * widthRatio;
+          let h = img.height * widthRatio;
           
-          // تحديد حد أقصى للأبعاد
-          if (newWidth > 2500) {
-             const ratio = 2500 / newWidth;
-             newWidth = 2500; newHeight *= ratio;
-             widthRatio = newWidth / img.width; 
-          }
-
-          canvas.width = newWidth;
-          canvas.height = newHeight;
+          // تقييد الأبعاد القصوى
+          if (w > 2500) { let r = 2500/w; w=2500; h*=r; widthRatio = w/img.width; }
+          
+          canvas.width = w; canvas.height = h;
           const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0, newWidth, newHeight);
-          
-          canvas.toBlob((blob) => {
-            resolve(new File([blob], imageFile.name, { type: 'image/jpeg' }));
-          }, 'image/jpeg', quality);
+          ctx.drawImage(img, 0, 0, w, h);
+          canvas.toBlob(blob => resolve(new File([blob], imageFile.name, {type: 'image/jpeg'})), 'image/jpeg', quality);
         };
       });
-      quality -= 0.1; widthRatio -= 0.1; attempts++;
+      quality -= 0.15; widthRatio -= 0.1;
     }
     return currentFile;
   };
@@ -141,7 +140,7 @@ export default function Home() {
       const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d');
       canvas.width = 1; canvas.height = 1; ctx.drawImage(img, 0, 0, 1, 1);
       const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
-      setDominantColor(`rgba(${r}, ${g}, ${b}, 0.15)`);
+      setDominantColor(`rgba(${r}, ${g}, ${b}, 0.12)`);
     };
   }, [previewUrl]);
 
@@ -154,89 +153,78 @@ export default function Home() {
   const forceDownload = async (url) => {
     setDownloading(true);
     try {
-      const response = await fetch(url); const blob = await response.blob();
-      const blobUrl = window.URL.createObjectURL(blob); const link = document.createElement('a');
-      link.href = blobUrl; link.download = `OBAD-Enhanced-${Date.now()}.png`;
-      document.body.appendChild(link); link.click(); document.body.removeChild(link); window.URL.revokeObjectURL(blobUrl);
-    } catch (e) { alert("فشل التحميل التلقائي"); } finally { setDownloading(false); }
+      const res = await fetch(url); const blob = await res.blob();
+      const urlBlob = window.URL.createObjectURL(blob);
+      const link = document.createElement('a'); link.href = urlBlob; link.download = `OBAD-Enhanced-${Date.now()}.png`;
+      document.body.appendChild(link); link.click(); document.body.removeChild(link); window.URL.revokeObjectURL(urlBlob);
+    } catch { alert("خطأ في التحميل"); } finally { setDownloading(false); }
   };
 
+  // --- عملية التحسين بنظام Polling ---
   const handleUpscale = async () => {
     if (!file) return;
     setLoading(true);
-    setStatusMessage("جاري رفع الصورة...");
+    setStatusMsg("جاري الرفع...");
     
     try {
       const processedFile = await compressImage(file);
-      
       const formData = new FormData(); 
       formData.append("image", processedFile); 
       formData.append("scale", scale);
-      
-      // 1. بدء المعالجة
+
+      // 1. إرسال الطلب والحصول على التذكرة (ID)
       const res = await fetch('/api/upscale', { method: 'POST', body: formData });
       const data = await res.json();
       
-      if (!res.ok || data.error) throw new Error(data.error || "فشل الاتصال");
+      if (!res.ok || data.error) throw new Error(data.error || "خطأ في السيرفر");
       
       const predictionId = data.id;
-      setStatusMessage("جاري المعالجة بواسطة A100...");
+      setStatusMsg("جاري المعالجة بواسطة A100...");
 
-      // 2. حلقة الانتظار (Polling Loop)
-      let resultFound = false;
+      // 2. فحص الحالة كل ثانيتين
+      let done = false;
       let attempts = 0;
-      
-      while (!resultFound && attempts < 60) { // نحاول لمدة دقيقتين تقريباً
-        await new Promise(r => setTimeout(r, 2000)); // انتظر ثانيتين
+      while (!done && attempts < 120) { // انتظار حتى 4 دقائق
+        await new Promise(r => setTimeout(r, 2000));
         
         const checkRes = await fetch('/api/upscale', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {'Content-Type': 'application/json'},
           body: JSON.stringify({ checkId: predictionId })
         });
-        
         const checkData = await checkRes.json();
         
-        if (checkData.status === "succeeded") {
+        if (checkData.status === 'succeeded') {
           setResult(checkData.output);
-          resultFound = true;
-        } else if (checkData.status === "failed") {
-          throw new Error("فشلت المعالجة من المصدر");
+          done = true;
+        } else if (checkData.status === 'failed') {
+          throw new Error("فشلت المعالجة من المصدر (الصورة قد تكون معقدة)");
         } else {
-          // ما زال يعمل
-          setStatusMessage(`جاري التحسين... (${attempts}%)`);
+           // ما زال يعمل
+           attempts++;
         }
-        attempts++;
       }
-      
-      if (!resultFound) throw new Error("انتهى الوقت، الخادم مشغول جداً");
+      if (!done) throw new Error("انتهى الوقت المحدد للمعالجة");
 
-    } catch (e) { 
-      alert("تنبيه: " + e.message); 
-    } finally { 
-      setLoading(false); 
-      setStatusMessage("");
-    }
+    } catch (e) { alert(e.message); } finally { setLoading(false); setStatusMsg(""); }
   };
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop: (f) => { setFile(f[0]); setResult(null); },
-    accept: { 'image/*': [] }, multiple: false
+    onDrop: (f) => { setFile(f[0]); setResult(null); }, accept: {'image/*': []}, multiple: false
   });
 
   return (
     <main dir="rtl" style={{ minHeight: '100vh', backgroundColor: '#050505', color: '#fff', position: 'relative', overflowX: 'hidden' }}>
       {fontImport}
       
-      {/* إضاءة خلفية هادئة (Ambient Light) */}
+      {/* Spotlight Effect: إضاءة خلفية تتبع الماوس */}
       <motion.div 
-        animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.5, 0.3] }}
-        transition={{ duration: 10, repeat: Infinity }}
         style={{ 
-          position: 'fixed', top: '20%', left: '30%', 
-          width: '600px', height: '600px', 
-          background: `radial-gradient(circle, ${dominantColor} 0%, transparent 70%)`, 
-          filter: 'blur(100px)', zIndex: 0, pointerEvents: 'none', mixBlendMode: 'screen'
+          x: mouseX, y: mouseY, 
+          position: 'fixed', top: 0, left: 0, 
+          width: '800px', height: '800px', 
+          background: `radial-gradient(circle, ${dominantColor} 0%, transparent 60%)`, 
+          opacity: 1, zIndex: 0, pointerEvents: 'none', mixBlendMode: 'screen'
         }} 
       />
 
@@ -276,7 +264,7 @@ export default function Home() {
                 <div style={{textAlign: 'center'}}>
                   <div style={{ fontSize: '50px', marginBottom: '20px', filter: 'grayscale(1)' }}>📷</div>
                   <p style={{ fontSize: '1.1rem', color: '#fff', fontWeight: 'bold' }}>اضغط لرفع الصورة</p>
-                  <p style={{ fontSize: '0.9rem', color: '#666' }}>ندعم الملفات الضخمة</p>
+                  <p style={{ fontSize: '0.9rem', color: '#666' }}>ندعم الملفات الكبيرة</p>
                 </div>}
             </div>
 
@@ -285,7 +273,7 @@ export default function Home() {
                 {result ? `✨ إعادة التحسين (${scale}x)` : '✨ ابدأ المعالجة السحرية'}
               </button>
             )}
-            {loading && <p style={{ marginTop: '25px', color: '#888' }}>{statusMessage}</p>}
+            {loading && <p style={{ marginTop: '25px', color: '#888' }}>{statusMsg}</p>}
           </div>
 
           <AnimatePresence>
@@ -299,19 +287,6 @@ export default function Home() {
               </motion.div>
             )}
           </AnimatePresence>
-        </div>
-
-        <div style={{ marginTop: '150px', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '80px' }}>
-          <h2 style={{ fontSize: '2rem', fontWeight: 'bold', marginBottom: '50px', color: '#eee' }}>كيف يعمل OBAD.AI؟</h2>
-          <div style={{ display: 'flex', justifyContent: 'center', gap: '50px', flexWrap: 'wrap' }}>
-            {[ { icon: '📦', title: 'دعم الملفات الضخمة', desc: 'نظام ضغط ذكي يعالج الصور الكبيرة تلقائياً.' }, { icon: '⚡', title: 'سيرفرات A100', desc: 'معالجة فائقة السرعة والدقة.' }, { icon: '💎', title: 'نتائج 8K', desc: 'وضوح وتفاصيل لم ترها من قبل.' } ].map((item, i) => (
-              <div key={i} style={{ flex: '1 1 250px', maxWidth: '300px', padding: '30px', background: 'rgba(255,255,255,0.02)', borderRadius: '30px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                <div style={{ fontSize: '40px', marginBottom: '20px' }}>{item.icon}</div>
-                <h3 style={{ fontSize: '1.2rem', fontWeight: 'bold', marginBottom: '10px' }}>{item.title}</h3>
-                <p style={{ color: '#888', fontSize: '0.9rem', lineHeight: '1.6' }}>{item.desc}</p>
-              </div>
-            ))}
-          </div>
         </div>
       </div>
       <footer style={{ marginTop: '100px', padding: '40px 0', borderTop: '1px solid rgba(255,255,255,0.05)', textAlign: 'center', color: '#666', fontSize: '0.9rem' }}>
