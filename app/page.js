@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { motion, AnimatePresence, useMotionValue } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs";
 
 // --- استيراد الخطوط ---
@@ -9,10 +9,6 @@ const fontImport = (
   <style jsx global>{`
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;700;900&display=swap');
     body { font-family: 'Cairo', sans-serif !important; background-color: #050505; }
-    /* استعادة مؤشر الماوس الطبيعي */
-    * { cursor: auto !important; }
-    button { cursor: pointer !important; }
-    .slider-handle { cursor: ew-resize !important; }
   `}</style>
 );
 
@@ -55,14 +51,12 @@ const BeforeAfterComparison = ({ before, after }) => {
          onTouchStart={(e) => { isDragging.current = true; handleMove(e.touches[0].clientX); }}
          style={{ 
            position: 'relative', width: '100%', height: '500px', borderRadius: '30px', overflow: 'hidden', 
-           background: '#000', border: '1px solid rgba(255,255,255,0.1)', userSelect: 'none'
+           background: '#000', border: '1px solid rgba(255,255,255,0.1)', cursor: 'ew-resize', userSelect: 'none'
          }}>
       
-      {/* الصورة المحسنة (الخلفية) */}
       <img src={after} alt="After" style={{ position: 'absolute', top:0, left:0, width: '100%', height: '100%', objectFit: 'contain' }} />
       <div style={{ position: 'absolute', top: '20px', left: '20px', padding: '6px 16px', borderRadius: '20px', background: 'rgba(0,0,0,0.7)', color: '#fff', fontSize: '0.9rem', fontWeight: 'bold', pointerEvents: 'none' }}>بعد</div>
 
-      {/* الصورة الأصلية (المقصوصة) */}
       <div style={{ 
         position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', 
         clipPath: `inset(0 ${100 - sliderPosition}% 0 0)` 
@@ -71,8 +65,7 @@ const BeforeAfterComparison = ({ before, after }) => {
         <div style={{ position: 'absolute', top: '20px', right: '20px', padding: '6px 16px', borderRadius: '20px', background: 'rgba(0,0,0,0.7)', color: '#fff', fontSize: '0.9rem', fontWeight: 'bold', pointerEvents: 'none' }}>قبل</div>
       </div>
 
-      {/* الخط والمقبض */}
-      <div style={{ position: 'absolute', top: 0, bottom: 0, left: `${sliderPosition}%`, width: '2px', background: 'rgba(255,255,255,0.9)', cursor: 'ew-resize' }}>
+      <div style={{ position: 'absolute', top: 0, bottom: 0, left: `${sliderPosition}%`, width: '2px', background: 'rgba(255,255,255,0.9)' }}>
         <div className="slider-handle" style={{ 
           position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', 
           width: '44px', height: '44px', background: '#fff', borderRadius: '50%', 
@@ -93,87 +86,51 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [scale, setScale] = useState(2);
-  const [dominantColor, setDominantColor] = useState('rgba(41, 151, 255, 0.15)');
+  const [dominantColor, setDominantColor] = useState('rgba(41, 151, 255, 0.1)');
+  const [statusMessage, setStatusMessage] = useState("");
 
-  // --- إضاءة احترافية (Spotlight) بدون تأخير ---
-  const mouseX = useMotionValue(-500); // إخفاء الإضاءة في البداية
-  const mouseY = useMotionValue(-500);
-
-  useEffect(() => {
-    const handleMouseMove = (e) => {
-      // تحريك الإضاءة فورياً (بدون Spring) لتبدو طبيعية
-      mouseX.set(e.clientX - 400); // 400 = نصف عرض الإضاءة (800px / 2)
-      mouseY.set(e.clientY - 400);
-    };
-    window.addEventListener("mousemove", handleMouseMove);
-    return () => window.removeEventListener("mousemove", handleMouseMove);
-  }, [mouseX, mouseY]);
-
-  // --- ضغط الصور القسري (النسخة الصارمة) ---
+  // --- ضغط الصور القسري ---
   const compressImage = async (imageFile) => {
-    // الحد الصارم لـ Vercel (نترك هامش أمان كبير: 3.5MB)
-    const MAX_SIZE_MB = 3.5;
+    // تركنا مساحة 4 ميجا وهي كافية جداً مع نظام الـ Polling الجديد
+    const MAX_SIZE_MB = 4.0;
     const MAX_BYTES = MAX_SIZE_MB * 1024 * 1024;
     
-    // إذا الصورة أصلاً صغيرة، إرجاعها فوراً
     if (imageFile.size < MAX_BYTES) return imageFile;
-
-    console.log(`Original Size: ${(imageFile.size / 1024 / 1024).toFixed(2)} MB - Starting Compression...`);
+    setStatusMessage("جاري ضغط الصورة لتقليل حجمها...");
 
     let currentFile = imageFile;
     let quality = 0.9;
     let widthRatio = 1.0;
-    
-    // محددات للتوقف لتجنب الحلقة اللانهائية
     let attempts = 0;
-    const maxAttempts = 10;
 
-    while (currentFile.size > MAX_BYTES && attempts < maxAttempts) {
+    while (currentFile.size > MAX_BYTES && attempts < 10) {
       currentFile = await new Promise((resolve) => {
         const img = new Image();
-        img.src = URL.createObjectURL(imageFile); // دائماً نرجع للأصل للحفاظ على الجودة
+        img.src = URL.createObjectURL(imageFile);
         img.onload = () => {
           const canvas = document.createElement('canvas');
-          
-          // تقليل الأبعاد بنسبة مئوية
           let newWidth = img.width * widthRatio;
           let newHeight = img.height * widthRatio;
-
-          // التأكد أن الأبعاد لا تتجاوز حداً أقصى معقولاً (مثلاً 2500px)
-          const MAX_DIMENSION = 2500;
-          if (newWidth > MAX_DIMENSION || newHeight > MAX_DIMENSION) {
-             const ratio = Math.min(MAX_DIMENSION / newWidth, MAX_DIMENSION / newHeight);
-             newWidth *= ratio;
-             newHeight *= ratio;
-             // تحديث نسبة العرض للمحاولات القادمة
+          
+          // تحديد حد أقصى للأبعاد
+          if (newWidth > 2500) {
+             const ratio = 2500 / newWidth;
+             newWidth = 2500; newHeight *= ratio;
              widthRatio = newWidth / img.width; 
           }
 
           canvas.width = newWidth;
           canvas.height = newHeight;
-          
           const ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0, newWidth, newHeight);
           
           canvas.toBlob((blob) => {
-            if (blob) {
-              resolve(new File([blob], imageFile.name, { type: 'image/jpeg' }));
-            } else {
-              resolve(currentFile); // فشل التحويل
-            }
+            resolve(new File([blob], imageFile.name, { type: 'image/jpeg' }));
           }, 'image/jpeg', quality);
         };
       });
-
-      console.log(`Attempt ${attempts + 1}: ${(currentFile.size / 1024 / 1024).toFixed(2)} MB (Q:${quality.toFixed(1)}, Scale:${widthRatio.toFixed(2)})`);
-
-      if (currentFile.size > MAX_BYTES) {
-        quality -= 0.15; // تقليل الجودة بقوة أكبر
-        widthRatio -= 0.15; // تصغير الأبعاد بقوة أكبر
-        attempts++;
-      }
+      quality -= 0.1; widthRatio -= 0.1; attempts++;
     }
-    
     return currentFile;
   };
 
@@ -184,8 +141,7 @@ export default function Home() {
       const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d');
       canvas.width = 1; canvas.height = 1; ctx.drawImage(img, 0, 0, 1, 1);
       const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
-      // جعل اللون خافتاً جداً ليكون أنيقاً
-      setDominantColor(`rgba(${r}, ${g}, ${b}, 0.12)`);
+      setDominantColor(`rgba(${r}, ${g}, ${b}, 0.15)`);
     };
   }, [previewUrl]);
 
@@ -208,24 +164,59 @@ export default function Home() {
   const handleUpscale = async () => {
     if (!file) return;
     setLoading(true);
+    setStatusMessage("جاري رفع الصورة...");
+    
     try {
-      // ضغط الصورة مهما كان حجمها
       const processedFile = await compressImage(file);
       
       const formData = new FormData(); 
       formData.append("image", processedFile); 
       formData.append("scale", scale);
       
+      // 1. بدء المعالجة
       const res = await fetch('/api/upscale', { method: 'POST', body: formData });
-      const text = await res.text();
-      try {
-        const data = JSON.parse(text);
-        if (!res.ok) throw new Error(data.error || "خطأ في السيرفر");
-        if (data.result) setResult(data.result); else throw new Error("لم تصل النتيجة");
-      } catch (jsonError) {
-        if (text.includes("Too Large")) throw new Error("فشل الضغط، الصورة معقدة جداً"); else throw new Error("فشل الاتصال");
+      const data = await res.json();
+      
+      if (!res.ok || data.error) throw new Error(data.error || "فشل الاتصال");
+      
+      const predictionId = data.id;
+      setStatusMessage("جاري المعالجة بواسطة A100...");
+
+      // 2. حلقة الانتظار (Polling Loop)
+      let resultFound = false;
+      let attempts = 0;
+      
+      while (!resultFound && attempts < 60) { // نحاول لمدة دقيقتين تقريباً
+        await new Promise(r => setTimeout(r, 2000)); // انتظر ثانيتين
+        
+        const checkRes = await fetch('/api/upscale', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ checkId: predictionId })
+        });
+        
+        const checkData = await checkRes.json();
+        
+        if (checkData.status === "succeeded") {
+          setResult(checkData.output);
+          resultFound = true;
+        } else if (checkData.status === "failed") {
+          throw new Error("فشلت المعالجة من المصدر");
+        } else {
+          // ما زال يعمل
+          setStatusMessage(`جاري التحسين... (${attempts}%)`);
+        }
+        attempts++;
       }
-    } catch (e) { alert(e.message); } finally { setLoading(false); }
+      
+      if (!resultFound) throw new Error("انتهى الوقت، الخادم مشغول جداً");
+
+    } catch (e) { 
+      alert("تنبيه: " + e.message); 
+    } finally { 
+      setLoading(false); 
+      setStatusMessage("");
+    }
   };
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -237,17 +228,15 @@ export default function Home() {
     <main dir="rtl" style={{ minHeight: '100vh', backgroundColor: '#050505', color: '#fff', position: 'relative', overflowX: 'hidden' }}>
       {fontImport}
       
-      {/* إضاءة احترافية (Spotlight) */}
+      {/* إضاءة خلفية هادئة (Ambient Light) */}
       <motion.div 
+        animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.5, 0.3] }}
+        transition={{ duration: 10, repeat: Infinity }}
         style={{ 
-          x: mouseX, y: mouseY, 
-          position: 'fixed', top: 0, left: 0, 
-          width: '800px', height: '800px', // حجم كبير جداً لنعومة الانتشار
-          background: `radial-gradient(circle, ${dominantColor} 0%, transparent 70%)`, // تدرج لوني ناعم
-          opacity: 1, 
-          zIndex: 0, 
-          pointerEvents: 'none',
-          mixBlendMode: 'screen' // دمج سينمائي مع الخلفية السوداء
+          position: 'fixed', top: '20%', left: '30%', 
+          width: '600px', height: '600px', 
+          background: `radial-gradient(circle, ${dominantColor} 0%, transparent 70%)`, 
+          filter: 'blur(100px)', zIndex: 0, pointerEvents: 'none', mixBlendMode: 'screen'
         }} 
       />
 
@@ -271,11 +260,10 @@ export default function Home() {
 
         <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'start', gap: '40px' }}>
           
-          {/* قسم الرفع */}
           <div style={{ flex: '1 1 500px', maxWidth: '600px' }}>
             <div {...getRootProps()} style={{ 
               border: `1px dashed ${isDragActive ? '#2997ff' : 'rgba(255,255,255,0.2)'}`, borderRadius: '40px', 
-              backgroundColor: 'rgba(255,255,255,0.02)', height: '500px', 
+              backgroundColor: 'rgba(255,255,255,0.02)', cursor: 'pointer', height: '500px', 
               display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', overflow: 'hidden', position: 'relative', transition: '0.3s'
             }}>
               <input {...getInputProps()} />
@@ -297,10 +285,9 @@ export default function Home() {
                 {result ? `✨ إعادة التحسين (${scale}x)` : '✨ ابدأ المعالجة السحرية'}
               </button>
             )}
-            {loading && <p style={{ marginTop: '25px', color: '#888' }}>جاري ضغط ومعالجة الصورة... ⏳</p>}
+            {loading && <p style={{ marginTop: '25px', color: '#888' }}>{statusMessage}</p>}
           </div>
 
-          {/* قسم النتيجة والمقارنة */}
           <AnimatePresence>
             {result && (
               <motion.div initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }} style={{ flex: '1 1 500px', maxWidth: '600px' }}>

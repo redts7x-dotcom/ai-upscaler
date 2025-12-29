@@ -1,20 +1,36 @@
-export const runtime = 'edge'; // لضمان عدم انقطاع الاتصال
+export const runtime = 'edge';
 import { NextResponse } from "next/server";
 
 export async function POST(req) {
   try {
+    // التحقق من نوع الطلب: هل هو رفع صورة أم فحص حالة؟
+    const contentType = req.headers.get("content-type") || "";
+
+    // --- الحالة 1: فحص حالة المعالجة (Polling) ---
+    if (contentType.includes("application/json")) {
+      const body = await req.json();
+      const { checkId } = body;
+      
+      const response = await fetch(`https://api.replicate.com/v1/predictions/${checkId}`, {
+        headers: { "Authorization": `Token ${process.env.REPLICATE_API_TOKEN}` },
+      });
+      
+      const data = await response.json();
+      return NextResponse.json(data);
+    }
+
+    // --- الحالة 2: بدء معالجة جديدة (Upload) ---
     const formData = await req.formData();
     const image = formData.get("image");
     const scale = parseInt(formData.get("scale")) || 2;
 
-    if (!image) return NextResponse.json({ error: "لم يتم اختيار صورة" }, { status: 400 });
+    if (!image) return NextResponse.json({ error: "No image found" }, { status: 400 });
 
-    // تحويل الصورة
     const arrayBuffer = await image.arrayBuffer();
     const base64String = Buffer.from(arrayBuffer).toString('base64');
     const dataUrl = `data:${image.type};base64,${base64String}`;
 
-    // إرسال الطلب للموديل الذي وجدته في Replicate (daanelson/real-esrgan-a100)
+    // إرسال الطلب لـ Replicate (بدون انتظار النتيجة النهائية)
     const response = await fetch("https://api.replicate.com/v1/predictions", {
       method: "POST",
       headers: {
@@ -22,40 +38,20 @@ export async function POST(req) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        // هذا هو رمز الإصدار الموجود في صورتك
+        // إصدار A100 المعتمد
         version: "f94d7ed4a1f7e1ffed0d51e4089e4911609d5eeee5e874ef323d2c7562624bed",
-        input: { 
-          image: dataUrl, 
-          scale: scale, // تم التعديل بناءً على مدخلات الموديل
-          face_enhance: true 
-        },
+        input: { image: dataUrl, scale: scale, face_enhance: true },
       }),
     });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      return NextResponse.json({ error: errorData.detail || "مشكلة في المفتاح أو الرصيد" }, { status: response.status });
-    }
-
-    let prediction = await response.json();
+    const prediction = await response.json();
     
-    // انتظار النتيجة
-    let attempts = 0;
-    while (prediction.status !== "succeeded" && prediction.status !== "failed" && attempts < 60) {
-      await new Promise(r => setTimeout(r, 1000));
-      const res = await fetch(`https://api.replicate.com/v1/predictions/${prediction.id}`, {
-        headers: { "Authorization": `Token ${process.env.REPLICATE_API_TOKEN}` },
-      });
-      prediction = await res.json();
-      attempts++;
-    }
+    if (prediction.error) return NextResponse.json({ error: prediction.error }, { status: 500 });
+    
+    // نرجع المعرف (ID) فوراً للمتصفح ليقوم هو بالمتابعة
+    return NextResponse.json({ id: prediction.id, status: prediction.status });
 
-    if (prediction.status === "succeeded") {
-      return NextResponse.json({ result: prediction.output });
-    } else {
-      return NextResponse.json({ error: "فشلت المعالجة" }, { status: 500 });
-    }
   } catch (err) {
-    return NextResponse.json({ error: "خطأ فني: " + err.message }, { status: 500 });
+    return NextResponse.json({ error: "Server Error: " + err.message }, { status: 500 });
   }
 }
