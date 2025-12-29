@@ -42,7 +42,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-10 font-sans">
-      <h1 className="text-5xl font-bold mb-10 text-blue-500">مكبر الصور الذكي</h1>
+      <h1 className="text-5xl font-bold mb-10 text-blue-500">مكبر الصور الذكي Pro</h1>
 
       {!result && (
         <div {...getRootProps()} className="border-2 border-dashed border-gray-700 p-20 rounded-2xl cursor-pointer hover:border-blue-500">
