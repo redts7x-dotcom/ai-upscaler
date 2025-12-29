@@ -13,7 +13,7 @@ export async function POST(req) {
     const base64String = Buffer.from(arrayBuffer).toString('base64');
     const dataUrl = `data:${image.type};base64,${base64String}`;
 
-    // إرسال الطلب لإصدار "NightmareAI Real-ESRGAN" المستقر
+    // إرسال الطلب لموديل A100 المطلوب (daanelson/real-esrgan-a100)
     const response = await fetch("https://api.replicate.com/v1/predictions", {
       method: "POST",
       headers: {
@@ -21,16 +21,24 @@ export async function POST(req) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        version: "42fed1c497414110d21ff5962f01560397f196acbea31cf40e313f2c37f1938d",
-        input: { image: dataUrl, upscale: scale, face_enhance: true },
+        // هذا هو الرمز الصحيح والحديث لموديل A100
+        version: "f94d7ed4a1f7e1ffed0d51e4089e4911609d5eeee5e874ef323d2c7562624bed",
+        input: { 
+          image: dataUrl, 
+          scale: scale, 
+          face_enhance: true 
+        },
       }),
     });
 
-    let prediction = await response.json();
-    if (prediction.error) return NextResponse.json({ error: prediction.error }, { status: 500 });
-    if (!response.ok) return NextResponse.json({ error: prediction.detail || "رفض المحرك الطلب" }, { status: response.status });
+    if (!response.ok) {
+      const errorData = await response.json();
+      return NextResponse.json({ error: errorData.detail || "رفض المحرك الطلب" }, { status: response.status });
+    }
 
-    // انتظار النتيجة (Polling)
+    let prediction = await response.json();
+    
+    // انتظار النتيجة
     let attempts = 0;
     while (prediction.status !== "succeeded" && prediction.status !== "failed" && attempts < 40) {
       await new Promise(r => setTimeout(r, 2000));
@@ -44,7 +52,7 @@ export async function POST(req) {
     if (prediction.status === "succeeded") {
       return NextResponse.json({ result: prediction.output });
     } else {
-      return NextResponse.json({ error: "فشلت المعالجة، حاول صورة أخرى" }, { status: 500 });
+      return NextResponse.json({ error: "فشلت المعالجة، حاول مرة أخرى" }, { status: 500 });
     }
   } catch (err) {
     return NextResponse.json({ error: "خطأ تقني: " + err.message }, { status: 500 });
