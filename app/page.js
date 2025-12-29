@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useMotionValue, useSpring } from 'framer-motion';
 import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs";
 
 export default function Home() {
@@ -11,26 +11,39 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [scale, setScale] = useState(2);
-  const [dominantColor, setDominantColor] = useState('rgba(255, 255, 255, 0.1)'); // لون افتراضي
+  const [dominantColor, setDominantColor] = useState('rgba(0, 123, 255, 0.2)'); // لون أزرق خافت افتراضي
+
+  // --- إعدادات حركة الماوس الناعمة ---
+  const mouseX = useMotionValue(0);
+  const mouseY = useMotionValue(0);
+
+  // استخدام Spring لجعل الحركة ناعمة "مطاطية" وليست جامدة
+  const springX = useSpring(mouseX, { stiffness: 100, damping: 30 });
+  const springY = useSpring(mouseY, { stiffness: 100, damping: 30 });
+
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      // نحرك الإضاءة لتكون منتصف الماوس تماماً
+      mouseX.set(e.clientX - 250); // نطرح نصف عرض الدائرة
+      mouseY.set(e.clientY - 250);
+    };
+    window.addEventListener("mousemove", handleMouseMove);
+    return () => window.removeEventListener("mousemove", handleMouseMove);
+  }, [mouseX, mouseY]);
 
   // --- دالة الضغط الذكي للصور الكبيرة ---
   const compressImage = async (imageFile) => {
-    // إذا الصورة أصغر من 4 ميجا، لا تلمسها
     if (imageFile.size < 4 * 1024 * 1024) return imageFile;
-
     return new Promise((resolve) => {
       const img = new Image();
       img.src = URL.createObjectURL(imageFile);
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        // تصغير الأبعاد قليلاً للحفاظ على الجودة مع تقليل الحجم
         const scaleFactor = 0.8; 
         canvas.width = img.width * scaleFactor;
         canvas.height = img.height * scaleFactor;
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        
-        // تحويلها لـ JPEG بجودة 85% لتقليل الحجم بشكل كبير
         canvas.toBlob((blob) => {
           resolve(new File([blob], imageFile.name, { type: 'image/jpeg' }));
         }, 'image/jpeg', 0.85);
@@ -50,7 +63,8 @@ export default function Home() {
       canvas.width = 1; canvas.height = 1;
       ctx.drawImage(img, 0, 0, 1, 1);
       const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
-      setDominantColor(`rgba(${r}, ${g}, ${b}, 0.5)`);
+      // جعلنا الشفافية 0.4 لتكون الإضاءة واضحة خلف الزجاج
+      setDominantColor(`rgba(${r}, ${g}, ${b}, 0.4)`);
     };
   }, [previewUrl]);
 
@@ -81,25 +95,21 @@ export default function Home() {
   const handleUpscale = async () => {
     if (!file) return;
     setLoading(true);
-
     try {
-      // 1. تطبيق الضغط الذكي إذا لزم الأمر
       const fileToSend = await compressImage(file);
-
       const formData = new FormData();
       formData.append("image", fileToSend);
       formData.append("scale", scale);
 
       const res = await fetch('/api/upscale', { method: 'POST', body: formData });
       const text = await res.text();
-      
       try {
         const data = JSON.parse(text);
         if (!res.ok) throw new Error(data.error || "خطأ في السيرفر");
         if (data.result) setResult(data.result);
         else throw new Error("لم تصل النتيجة");
       } catch (jsonError) {
-        if (text.includes("Too Large")) throw new Error("الصورة ضخمة جداً حتى بعد الضغط، جرب صورة أخرى");
+        if (text.includes("Too Large")) throw new Error("الصورة ضخمة جداً، حاول بصورة أخرى");
         else throw new Error("فشل الاتصال");
       }
     } catch (e) { alert(e.message); } 
@@ -111,30 +121,30 @@ export default function Home() {
     accept: { 'image/*': [] }, multiple: false
   });
 
-  // حركة الخلفية المتفاعلة
-  const lightVariants = {
-    idle: { scale: 1, opacity: 0.2, rotate: 0 },
-    processing: { 
-      scale: [1, 1.4, 1], 
-      opacity: [0.3, 0.7, 0.3], 
-      rotate: [0, 45, -45, 0],
-      transition: { duration: 4, repeat: Infinity, ease: "easeInOut" } 
-    }
-  };
-
   return (
     <main dir="rtl" style={{ 
       minHeight: '100vh', backgroundColor: '#000', color: '#fff', position: 'relative', overflow: 'hidden',
-      fontFamily: 'system-ui, sans-serif' 
+      fontFamily: 'system-ui, sans-serif', cursor: 'default'
     }}>
       
-      {/* الخلفية الملونة المتحركة */}
-      <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', zIndex: 0, pointerEvents: 'none' }}>
-        <motion.div variants={lightVariants} animate={loading ? "processing" : "idle"}
-          style={{ position: 'absolute', top: '20%', left: '10%', width: '60vw', height: '60vw', background: dominantColor, filter: 'blur(140px)', borderRadius: '50%' }} />
-        <motion.div variants={lightVariants} animate={loading ? "processing" : "idle"} transition={{ delay: 2 }}
-          style={{ position: 'absolute', bottom: '10%', right: '10%', width: '50vw', height: '50vw', background: dominantColor, filter: 'blur(140px)', borderRadius: '50%' }} />
-      </div>
+      {/* --- إضاءة تتبع الماوس (Mouse Follower) --- */}
+      <motion.div 
+        style={{ 
+          x: springX, 
+          y: springY,
+          position: 'fixed', 
+          top: 0, 
+          left: 0, 
+          width: '500px', 
+          height: '500px', 
+          backgroundColor: dominantColor, // اللون يتغير حسب الصورة
+          borderRadius: '50%', 
+          filter: 'blur(120px)', // تغبيش عالي للنعومة
+          opacity: 0.6,
+          zIndex: 0,
+          pointerEvents: 'none' // لكي لا يمنع الضغط على الأزرار
+        }} 
+      />
 
       <nav style={{ 
         display: 'flex', justifyContent: 'space-between', padding: '0 40px', height: '70px', alignItems: 'center',
@@ -147,7 +157,7 @@ export default function Home() {
 
       <div style={{ position: 'relative', zIndex: 10, maxWidth: '1300px', margin: '0 auto', padding: '60px 20px', textAlign: 'center' }}>
         <h1 style={{ fontSize: '4.5rem', fontWeight: '900', marginBottom: '15px', background: 'linear-gradient(to bottom, #fff, #999)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>سحر التحسين A100.</h1>
-        <p style={{ color: '#a1a1a6', fontSize: '1.3rem', marginBottom: '40px' }}>ارفع جودة صورك (حتى الكبيرة) باستخدام أقوى موديل متاح.</p>
+        <p style={{ color: '#a1a1a6', fontSize: '1.3rem', marginBottom: '40px' }}>جرب تحريك الماوس وشاهد كيف تتبعك الإضاءة بألوان صورتك.</p>
 
         <div style={{ display: 'inline-flex', background: 'rgba(255,255,255,0.05)', padding: '5px', borderRadius: '16px', marginBottom: '40px', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)' }}>
           {[ {l:'HD (2x)', v:2}, {l:'4K (4x)', v:4}, {l:'8K (8x)', v:8} ].map(q => (
@@ -157,7 +167,6 @@ export default function Home() {
 
         <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'start', gap: '40px' }}>
           
-          {/* قسم الصورة الأصلية */}
           <div style={{ flex: '1 1 500px', maxWidth: '600px' }}>
             <div {...getRootProps()} style={{ 
               border: `1px solid ${isDragActive ? '#fff' : 'rgba(255,255,255,0.1)'}`, borderRadius: '40px', 
@@ -176,10 +185,9 @@ export default function Home() {
                 {result ? `إعادة التحسين (${scale}x)` : 'ابدأ التحسين الآن'}
               </button>
             )}
-            {loading && <p style={{ marginTop: '30px', color: '#fff', fontSize: '1.1rem' }}>جاري ضغط ومعالجة الصورة... ⏳</p>}
+            {loading && <p style={{ marginTop: '30px', color: '#fff', fontSize: '1.1rem' }}>جاري التحسين... لاحظ لون الإضاءة خلف الماوس 🎨</p>}
           </div>
 
-          {/* قسم النتيجة */}
           <AnimatePresence>
             {result && (
               <motion.div initial={{ opacity: 0, x: -50 }} animate={{ opacity: 1, x: 0 }} style={{ flex: '1 1 500px', maxWidth: '600px' }}>
