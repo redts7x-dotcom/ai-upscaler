@@ -29,15 +29,16 @@ export async function POST(request) {
 
 // تشغيل الموديل الجديد (A100) الذي اخترته
 const output = await replicate.run(
-  "daanelson/real-esrgan-a100:f94d7ed4a1f7e1ffed0d51e4089e4911609d5eeee5e874ef323d2c7562624bed",
-  {
-    input: {
-      image: image,      // الصورة التي رفعها المستخدم
-      scale: 4,          // درجة التكبير (يمكنك تغييرها)
-      face_enhance: true // تفعيل تحسين الوجوه
-    }
-  }
-);
+      "daanelson/real-esrgan-a100:f94d7ed4a1f7e1ffed0d51e4089e4911609d5eeee5e874ef323d2c7562624bed",
+      {
+        input: {
+          image: imageBase64,
+          scale: 8,            // زدنا التكبير لرفع الجودة والحجم
+          face_enhance: true,  // تحسين الوجه مفعل
+          tile: 0,             // لضمان عدم وجود حدود بين أجزاء الصورة
+        }
+      }
+    );
 
 // ... تكملة الكود ...
 
