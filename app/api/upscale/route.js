@@ -9,12 +9,11 @@ export async function POST(req) {
 
     if (!image) return NextResponse.json({ error: "لم يتم اختيار صورة" }, { status: 400 });
 
-    // تحويل الصورة بطريقة تتوافق مع نظام Vercel Edge
     const arrayBuffer = await image.arrayBuffer();
     const base64String = Buffer.from(arrayBuffer).toString('base64');
     const dataUrl = `data:${image.type};base64,${base64String}`;
 
-    // إرسال الطلب لمحرك الذكاء الاصطناعي
+    // إرسال الطلب لمحرك Real-ESRGAN الرسمي والفعال
     const response = await fetch("https://api.replicate.com/v1/predictions", {
       method: "POST",
       headers: {
@@ -22,24 +21,24 @@ export async function POST(req) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        // نسخة الموديل Real-ESRGAN
-        version: "334f6812837330a6157f3630733a25b2d5f81005110d7a96dbf20c4e704040a4",
+        // هذا الإصدار مستقر وعام (Public)
+        version: "f121d640fb22379685a4a139c693968e40f340263bc859cd689408269e160a2b",
         input: { image: dataUrl, upscale: scale },
       }),
     });
 
     if (!response.ok) {
       const errorData = await response.json();
-      return NextResponse.json({ error: errorData.detail || "فشل الاتصال بـ Replicate" }, { status: response.status });
+      return NextResponse.json({ error: errorData.detail || "فشل المحرك" }, { status: response.status });
     }
 
     const prediction = await response.json();
     
-    // الانتظار الذكي للنتيجة
+    // انتظار النتيجة
     let result = prediction;
     let attempts = 0;
-    while (result.status !== "succeeded" && result.status !== "failed" && attempts < 30) {
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+    while (result.status !== "succeeded" && result.status !== "failed" && attempts < 40) {
+      await new Promise((r) => setTimeout(r, 2000));
       const res = await fetch(`https://api.replicate.com/v1/predictions/${prediction.id}`, {
         headers: { "Authorization": `Token ${process.env.REPLICATE_API_TOKEN}` },
       });
@@ -47,13 +46,8 @@ export async function POST(req) {
       attempts++;
     }
 
-    if (result.status === "succeeded") {
-      return NextResponse.json({ result: result.output });
-    } else {
-      return NextResponse.json({ error: "فشلت عملية المعالجة" }, { status: 500 });
-    }
-
+    return NextResponse.json({ result: result.output });
   } catch (error) {
-    return NextResponse.json({ error: "خطأ تقني في السيرفر" }, { status: 500 });
+    return NextResponse.json({ error: "خطأ في السيرفر" }, { status: 500 });
   }
 }
