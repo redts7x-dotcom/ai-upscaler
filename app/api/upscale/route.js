@@ -14,12 +14,12 @@ export async function POST(request) {
       return NextResponse.json({ error: "لم يتم رفع صورة" }, { status: 400 });
     }
 
-    // تحويل الصورة لكود يفهمه الذكاء الاصطناعي
+    // تحويل الصورة
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
     const imageBase64 = `data:${file.type};base64,${buffer.toString('base64')}`;
 
-    console.log("جاري التكبير...");
+    console.log("جاري التكبير بمقياس 6...");
 
     // تشغيل الموديل
     let output = await replicate.run(
@@ -27,21 +27,18 @@ export async function POST(request) {
       {
         input: {
           image: imageBase64,
-          scale: 8,           
+          scale: 6,           // <--- تم التعديل من 8 إلى 6
           face_enhance: true,
           tile: 0,
         }
       }
     );
 
-    // --- (هذا هو التعديل الجديد لحل مشكلة object Object) ---
-    // إذا كان المخرج مصفوفة (Array)، نأخذ الرابط الأول منها
+    // استخراج الرابط الصحيح (لتجنب مشكلة object)
     if (Array.isArray(output)) {
       output = output[0];
     }
-    // للتأكد أن الرابط نص فقط
     const finalResult = String(output);
-    // -----------------------------------------------------
 
     return NextResponse.json({ result: finalResult });
 
