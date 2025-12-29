@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { motion } from 'framer-motion';
 
@@ -8,10 +8,10 @@ export default function Home() {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [scale, setScale] = useState(4); // القيمة الافتراضية 4x
   const [sliderPosition, setSliderPosition] = useState(50);
   const [isResizing, setIsResizing] = useState(false);
 
-  // --- دالة التحميل الذكية ---
   const downloadImage = async (url) => {
     setDownloading(true);
     try {
@@ -20,7 +20,7 @@ export default function Home() {
       const blobUrl = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = blobUrl;
-      link.download = `Pro_Upscale_${Date.now()}.png`;
+      link.download = `Upscale_${scale}x_${Date.now()}.png`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -30,7 +30,6 @@ export default function Home() {
     }
     setDownloading(false);
   };
-  // -------------------------
 
   const onDrop = async (acceptedFiles) => {
     const f = acceptedFiles[0];
@@ -41,6 +40,7 @@ export default function Home() {
 
     const formData = new FormData();
     formData.append("image", f);
+    formData.append("scale", scale); // إرسال خيار المستخدم
 
     try {
       const res = await fetch('/api/upscale', { method: 'POST', body: formData });
@@ -58,9 +58,6 @@ export default function Home() {
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop });
 
-  // منطق شريط المقارنة (Slider)
-  const handleMouseDown = () => setIsResizing(true);
-  const handleMouseUp = () => setIsResizing(false);
   const handleMouseMove = (e) => {
     if (!isResizing) return;
     const rect = e.currentTarget.getBoundingClientRect();
@@ -70,156 +67,124 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white font-sans selection:bg-purple-500 selection:text-white overflow-x-hidden relative">
-      {/* خلفية جمالية */}
-      <div className="fixed top-0 left-0 w-full h-full overflow-hidden -z-10">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-purple-900/30 rounded-full blur-[120px] animate-pulse"></div>
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-900/20 rounded-full blur-[120px] animate-pulse delay-1000"></div>
+    <div className="min-h-screen bg-[#050505] text-white font-sans overflow-x-hidden relative selection:bg-blue-500 selection:text-white">
+      {/* خلفية حية */}
+      <div className="fixed inset-0 -z-10 overflow-hidden">
+        <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-blue-900/20 rounded-full blur-[150px] animate-pulse"></div>
+        <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-purple-900/20 rounded-full blur-[150px] animate-pulse delay-700"></div>
       </div>
 
-      <main className="container mx-auto px-4 py-20 flex flex-col items-center">
+      <main className="container mx-auto px-4 py-16 flex flex-col items-center">
         
-        {/* العنوان */}
-        <motion.div 
-          initial={{ opacity: 0, y: 30 }} 
+        <motion.h1 
+          initial={{ opacity: 0, y: -20 }} 
           animate={{ opacity: 1, y: 0 }} 
-          className="text-center mb-16 space-y-4"
+          className="text-5xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent text-center"
         >
-          <h1 className="text-6xl md:text-7xl font-extrabold bg-gradient-to-br from-white via-gray-200 to-gray-500 bg-clip-text text-transparent tracking-tight">
-            Pro Upscaler
-          </h1>
-          <p className="text-gray-400 text-lg md:text-xl max-w-2xl mx-auto font-light">
-            حول صورك القديمة إلى دقة <span className="text-blue-400 font-bold">4K</span> باستخدام أحدث تقنيات الذكاء الاصطناعي.
-          </p>
-        </motion.div>
+          Pro Upscaler
+        </motion.h1>
 
-        {/* منطقة الرفع */}
-        {!result && (
+        {/* --- شريط اختيار الجودة الزجاجي --- */}
+        {!loading && !result && (
           <motion.div 
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="mb-8 p-1 bg-white/10 backdrop-blur-md border border-white/20 rounded-full flex gap-1 shadow-2xl"
+          >
+            {[
+              { label: 'HD (2x)', value: 2, color: 'hover:text-green-400' },
+              { label: '4K (4x)', value: 4, color: 'hover:text-blue-400' },
+              { label: '8K (8x)', value: 8, color: 'hover:text-purple-400' },
+            ].map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => setScale(opt.value)}
+                className={`
+                  px-6 py-2 rounded-full text-sm font-bold transition-all duration-300
+                  ${scale === opt.value 
+                    ? 'bg-white text-black shadow-lg scale-105' 
+                    : `text-gray-400 hover:bg-white/5 ${opt.color}`}
+                `}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </motion.div>
+        )}
+        {/* ---------------------------------- */}
+
+        {!result && (
+          <div 
             {...getRootProps()} 
             className={`
-              w-full max-w-2xl h-80 rounded-3xl border-2 border-dashed transition-all duration-300 flex flex-col items-center justify-center cursor-pointer group
-              ${isDragActive ? 'border-blue-500 bg-blue-500/10' : 'border-gray-700 hover:border-blue-400/50 hover:bg-white/5'}
-              ${loading ? 'pointer-events-none border-none' : ''}
+              w-full max-w-2xl h-72 rounded-3xl border-2 border-dashed transition-all duration-300 flex flex-col items-center justify-center cursor-pointer
+              ${isDragActive ? 'border-blue-500 bg-blue-500/10' : 'border-gray-800 hover:border-gray-600 hover:bg-white/5'}
+              ${loading ? 'pointer-events-none opacity-50' : ''}
             `}
           >
             <input {...getInputProps()} />
-            
             {loading ? (
-              <div className="flex flex-col items-center gap-6 w-full max-w-xs">
-                <div className="relative w-20 h-20">
-                   <div className="absolute inset-0 border-4 border-gray-700 rounded-full"></div>
-                   <div className="absolute inset-0 border-4 border-blue-500 rounded-full border-t-transparent animate-spin"></div>
-                </div>
-                <div className="text-center space-y-2">
-                  <p className="text-xl font-bold text-white animate-pulse">جاري المعالجة...</p>
-                  <p className="text-sm text-gray-400">نرفع الجودة ونحسن التفاصيل (A100)</p>
-                </div>
+              <div className="flex flex-col items-center gap-4">
+                <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                <p className="text-blue-400 animate-pulse">جاري تحويل الصورة إلى {scale === 2 ? 'HD' : scale === 4 ? '4K' : '8K'}...</p>
               </div>
             ) : (
-              <div className="text-center space-y-4 group-hover:scale-105 transition-transform">
-                <div className="w-16 h-16 bg-gray-800 rounded-2xl flex items-center justify-center mx-auto mb-2 text-3xl shadow-lg shadow-black/50">
-                  📷
-                </div>
-                <p className="text-2xl font-bold text-gray-200">اسحب صورتك هنا</p>
-                <p className="text-gray-500 text-sm">أو اضغط لفتح الاستوديو</p>
+              <div className="text-center space-y-2">
+                <span className="text-4xl">📥</span>
+                <p className="text-xl font-medium text-gray-300">ارفع صورتك هنا</p>
+                <p className="text-sm text-gray-500">الجودة المختارة: <span className="text-blue-400 font-bold">{scale}x</span></p>
               </div>
             )}
-          </motion.div>
+          </div>
         )}
 
-        {/* النتيجة والمقارنة */}
         {result && (
           <motion.div 
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
-            className="w-full max-w-4xl bg-gray-900/60 backdrop-blur-xl border border-white/10 p-2 rounded-3xl shadow-2xl overflow-hidden"
+            className="w-full max-w-4xl bg-black/40 backdrop-blur-xl border border-white/10 rounded-3xl overflow-hidden shadow-2xl mt-8"
           >
-            {/* شريط الأدوات العلوي */}
-            <div className="flex justify-between items-center px-6 py-4 border-b border-white/5">
-              <span className="text-gray-400 text-sm">✨ تم التحسين بنجاح</span>
-              <button 
-                onClick={() => {setResult(null); setFile(null);}} 
-                className="text-sm text-red-400 hover:text-red-300 transition-colors"
-              >
-                حذف ورفع جديدة
-              </button>
-            </div>
-
-            {/* منطقة المقارنة (Slider) */}
+            {/* Slider Comparison */}
             <div 
-              className="relative w-full h-[500px] cursor-ew-resize select-none bg-black group"
+              className="relative w-full h-[500px] cursor-ew-resize select-none bg-black/50 group"
               onMouseMove={handleMouseMove}
-              onMouseDown={handleMouseDown}
-              onMouseUp={handleMouseUp}
-              onMouseLeave={handleMouseUp}
+              onMouseDown={() => setIsResizing(true)}
+              onMouseUp={() => setIsResizing(false)}
+              onMouseLeave={() => setIsResizing(false)}
               onTouchMove={(e) => {
                  const rect = e.currentTarget.getBoundingClientRect();
                  const x = e.touches[0].clientX - rect.left;
                  setSliderPosition(Math.max(0, Math.min(100, (x / rect.width) * 100)));
               }}
             >
-              {/* الصورة الأصلية (الخلفية) */}
-              <img src={file} className="absolute inset-0 w-full h-full object-contain opacity-50 blur-sm scale-105" alt="Blur BG" />
-              <img src={file} className="absolute inset-0 w-full h-full object-contain" alt="Original" />
-              
-              {/* الصورة المحسنة (المقصوصة) */}
-              <div 
-                className="absolute inset-0 w-full h-full overflow-hidden"
-                style={{ clipPath: `polygon(${sliderPosition}% 0, 100% 0, 100% 100%, ${sliderPosition}% 100%)` }}
-              >
-                 <img src={result} className="absolute inset-0 w-full h-full object-contain" alt="Enhanced" />
-                 {/* علامة HD */}
-                 <div className="absolute top-4 right-4 bg-blue-600/90 text-white text-xs font-bold px-2 py-1 rounded shadow-lg backdrop-blur">
-                   AFTER (AI)
-                 </div>
+              <img src={file} className="absolute inset-0 w-full h-full object-contain opacity-50 blur-lg scale-110" />
+              <img src={file} className="absolute inset-0 w-full h-full object-contain" />
+              <div className="absolute inset-0 w-full h-full overflow-hidden" style={{ clipPath: `polygon(${sliderPosition}% 0, 100% 0, 100% 100%, ${sliderPosition}% 100%)` }}>
+                 <img src={result} className="absolute inset-0 w-full h-full object-contain" />
+                 <div className="absolute top-4 right-4 bg-blue-600/90 text-white text-[10px] font-bold px-2 py-1 rounded backdrop-blur">AFTER ({scale}x)</div>
               </div>
-
-              {/* علامة الأصلية */}
-              <div className="absolute top-4 left-4 bg-gray-800/80 text-white text-xs font-bold px-2 py-1 rounded shadow-lg backdrop-blur">
-                BEFORE
-              </div>
-
-              {/* الخط الفاصل */}
-              <div 
-                className="absolute top-0 bottom-0 w-1 bg-white cursor-ew-resize shadow-[0_0_20px_rgba(0,0,0,0.5)] z-10 flex items-center justify-center"
-                style={{ left: `${sliderPosition}%` }}
-              >
-                <div className="w-8 h-8 bg-white rounded-full shadow-lg flex items-center justify-center text-gray-900 text-xs font-bold">
-                  ⬌
-                </div>
+              <div className="absolute top-4 left-4 bg-gray-800/80 text-white text-[10px] font-bold px-2 py-1 rounded backdrop-blur">BEFORE</div>
+              <div className="absolute top-0 bottom-0 w-0.5 bg-white cursor-ew-resize shadow-[0_0_15px_rgba(255,255,255,0.8)] z-10" style={{ left: `${sliderPosition}%` }}>
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-lg text-black text-xs">↔</div>
               </div>
             </div>
 
-            {/* منطقة التحميل */}
-            <div className="p-8 flex flex-col md:flex-row items-center justify-between gap-6 bg-black/20">
-              <div className="text-center md:text-left">
-                 <h3 className="text-xl font-bold text-white mb-1">جاهزة للتحميل 🚀</h3>
-                 <p className="text-gray-400 text-sm">الدقة: فائقة الجودة (Super Resolution)</p>
+            <div className="p-6 flex flex-wrap justify-between items-center gap-4 border-t border-white/10">
+              <div>
+                <h3 className="text-lg font-bold text-white">تمت المعالجة بنجاح ✨</h3>
+                <p className="text-gray-400 text-sm">مستوى التكبير: {scale} أضعاف</p>
               </div>
-              
-              <div className="flex gap-4">
-                 <button 
-                   onClick={() => downloadImage(result)}
-                   disabled={downloading}
-                   className={`
-                     px-8 py-3 rounded-xl font-bold text-white shadow-lg transition-all hover:scale-105 active:scale-95 flex items-center gap-2
-                     ${downloading ? 'bg-gray-600 cursor-not-allowed' : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:shadow-blue-500/30'}
-                   `}
-                 >
-                   {downloading ? 'جاري التحميل...' : '📥 تحميل الجودة الأصلية'}
+              <div className="flex gap-3">
+                 <button onClick={() => downloadImage(result)} disabled={downloading} className="bg-white text-black px-6 py-2 rounded-full font-bold hover:scale-105 transition-transform flex items-center gap-2">
+                   {downloading ? 'جاري التحميل...' : '⬇️ تحميل'}
+                 </button>
+                 <button onClick={() => {setResult(null); setFile(null);}} className="bg-white/10 text-white px-6 py-2 rounded-full font-bold hover:bg-white/20 transition-colors">
+                   صورة جديدة
                  </button>
               </div>
             </div>
           </motion.div>
         )}
-
-        <footer className="mt-20 text-gray-600 text-sm">
-          Powered by <span className="text-gray-500 font-semibold">Replicate A100</span>
-        </footer>
-
       </main>
     </div>
   );
