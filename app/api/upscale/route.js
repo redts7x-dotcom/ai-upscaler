@@ -1,3 +1,6 @@
+export const runtime = 'edge'; // هذا السطر يسمح للعملية بأن تأخذ وقتاً أطول
+import { NextResponse } from "next/server";
+// باقي الكود...
 import { NextResponse } from 'next/server';
 import Replicate from "replicate";
 
