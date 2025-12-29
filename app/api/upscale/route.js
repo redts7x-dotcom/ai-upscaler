@@ -13,8 +13,8 @@ export async function POST(req) {
     const base64String = Buffer.from(arrayBuffer).toString('base64');
     const dataUrl = `data:${image.type};base64,${base64String}`;
 
-    // بدء عملية التحسين
-    const startResponse = await fetch("https://api.replicate.com/v1/predictions", {
+    // إرسال الطلب لإصدار "NightmareAI Real-ESRGAN" المستقر
+    const response = await fetch("https://api.replicate.com/v1/predictions", {
       method: "POST",
       headers: {
         "Authorization": `Token ${process.env.REPLICATE_API_TOKEN}`,
@@ -26,12 +26,13 @@ export async function POST(req) {
       }),
     });
 
-    let prediction = await startResponse.json();
-    if (!startResponse.ok) return NextResponse.json({ error: prediction.detail || "فشل في تشغيل المحرك" }, { status: startResponse.status });
+    let prediction = await response.json();
+    if (prediction.error) return NextResponse.json({ error: prediction.error }, { status: 500 });
+    if (!response.ok) return NextResponse.json({ error: prediction.detail || "رفض المحرك الطلب" }, { status: response.status });
 
     // انتظار النتيجة (Polling)
     let attempts = 0;
-    while (prediction.status !== "succeeded" && prediction.status !== "failed" && attempts < 30) {
+    while (prediction.status !== "succeeded" && prediction.status !== "failed" && attempts < 40) {
       await new Promise(r => setTimeout(r, 2000));
       const res = await fetch(`https://api.replicate.com/v1/predictions/${prediction.id}`, {
         headers: { "Authorization": `Token ${process.env.REPLICATE_API_TOKEN}` },
@@ -43,9 +44,9 @@ export async function POST(req) {
     if (prediction.status === "succeeded") {
       return NextResponse.json({ result: prediction.output });
     } else {
-      return NextResponse.json({ error: "فشلت المعالجة، حاول مرة أخرى" }, { status: 500 });
+      return NextResponse.json({ error: "فشلت المعالجة، حاول صورة أخرى" }, { status: 500 });
     }
   } catch (err) {
-    return NextResponse.json({ error: "خطأ فني: " + err.message }, { status: 500 });
+    return NextResponse.json({ error: "خطأ تقني: " + err.message }, { status: 500 });
   }
 }

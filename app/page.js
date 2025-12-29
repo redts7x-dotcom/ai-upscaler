@@ -21,7 +21,7 @@ export default function Home() {
       const res = await fetch('/api/upscale', { method: 'POST', body: formData });
       const data = await res.json();
       if (res.ok && data.result) setResult(data.result);
-      else alert("تنبيه: " + (data.error || "تأكد من شحن الرصيد في Replicate"));
+      else alert("تنبيه: " + (data.error || "خطأ غير محدد"));
     } catch (e) { alert("خطأ في الاتصال بالسيرفر"); } 
     finally { setLoading(false); }
   };
@@ -34,7 +34,7 @@ export default function Home() {
   return (
     <main dir="rtl" style={{ 
       minHeight: '100vh', backgroundColor: '#000', color: '#fff', 
-      backgroundImage: 'radial-gradient(circle at 50% 0%, #1a1a2e 0%, #000 85%)',
+      backgroundImage: 'radial-gradient(circle at 50% 0%, #1a1a2e 0%, #000 90%)',
       fontFamily: 'system-ui, sans-serif' 
     }}>
       <nav style={{ 
@@ -42,7 +42,7 @@ export default function Home() {
         backdropFilter: 'blur(30px)', backgroundColor: 'rgba(255,255,255,0.02)',
         borderBottom: '1px solid rgba(255,255,255,0.1)', position: 'sticky', top: 0, zIndex: 100
       }}>
-        <div style={{ fontSize: '1.6rem', fontWeight: '900' }}>OBAD</div>
+        <div style={{ fontSize: '1.6rem', fontWeight: '900', color: '#fff' }}>OBAD</div>
         <div>
           <SignedOut><SignInButton mode="modal"><button style={{ background: 'rgba(255,255,255,0.1)', color: '#fff', padding: '8px 25px', borderRadius: '40px', border: '1px solid rgba(255,255,255,0.2)', cursor: 'pointer' }}>دخول</button></SignInButton></SignedOut>
           <SignedIn><UserButton afterSignOutUrl="/" /></SignedIn>
@@ -66,7 +66,7 @@ export default function Home() {
         </div>
 
         {file && !loading && !result && (
-          <button onClick={handleUpscale} style={{ marginTop: '40px', backgroundColor: '#fff', color: '#000', padding: '18px 60px', borderRadius: '40px', border: 'none', cursor: 'pointer', fontWeight: '800', fontSize: '1.1rem' }}>بدء التحسين الآن</button>
+          <button onClick={handleUpscale} style={{ marginTop: '40px', backgroundColor: '#fff', color: '#000', padding: '18px 60px', borderRadius: '40px', border: 'none', cursor: 'pointer', fontWeight: '800', fontSize: '1.1rem' }}>ابدأ التحسين الآن</button>
         )}
 
         {loading && <p style={{ marginTop: '40px', color: '#fff', fontSize: '1.1rem' }}>جاري المعالجة بواسطة OBAD AI... انتظر قليلاً ⏳</p>}
