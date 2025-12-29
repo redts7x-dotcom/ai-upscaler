@@ -1,10 +1,5 @@
-export const runtime = 'edge'; // ضروري جداً لتجنب انقطاع الاتصال في Vercel
+export const runtime = 'edge';
 import { NextResponse } from "next/server";
-import Replicate from "replicate";
-
-const replicate = new Replicate({
-  auth: process.env.REPLICATE_API_TOKEN,
-});
 
 export async function POST(req) {
   try {
@@ -12,19 +7,53 @@ export async function POST(req) {
     const image = formData.get("image");
     const scale = parseInt(formData.get("scale")) || 2;
 
-    if (!image) return NextResponse.json({ error: "No image provided" }, { status: 400 });
+    if (!image) return NextResponse.json({ error: "لم يتم اختيار صورة" }, { status: 400 });
 
-    const bytes = await image.arrayBuffer();
-    const base64Image = `data:${image.type};base64,${Buffer.from(bytes).toString("base64")}`;
+    // تحويل الصورة بطريقة تتوافق مع نظام Vercel Edge
+    const arrayBuffer = await image.arrayBuffer();
+    const base64String = Buffer.from(arrayBuffer).toString('base64');
+    const dataUrl = `data:${image.type};base64,${base64String}`;
 
-    const output = await replicate.run(
-      "daanelson/real-esrgan-a100:334f6812837330a6157f3630733a25b2d5f81005110d7a96dbf20c4e704040a4",
-      { input: { image: base64Image, upscale: scale } }
-    );
+    // إرسال الطلب لمحرك الذكاء الاصطناعي
+    const response = await fetch("https://api.replicate.com/v1/predictions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Token ${process.env.REPLICATE_API_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        // نسخة الموديل Real-ESRGAN
+        version: "334f6812837330a6157f3630733a25b2d5f81005110d7a96dbf20c4e704040a4",
+        input: { image: dataUrl, upscale: scale },
+      }),
+    });
 
-    return NextResponse.json({ result: output });
+    if (!response.ok) {
+      const errorData = await response.json();
+      return NextResponse.json({ error: errorData.detail || "فشل الاتصال بـ Replicate" }, { status: response.status });
+    }
+
+    const prediction = await response.json();
+    
+    // الانتظار الذكي للنتيجة
+    let result = prediction;
+    let attempts = 0;
+    while (result.status !== "succeeded" && result.status !== "failed" && attempts < 30) {
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      const res = await fetch(`https://api.replicate.com/v1/predictions/${prediction.id}`, {
+        headers: { "Authorization": `Token ${process.env.REPLICATE_API_TOKEN}` },
+      });
+      result = await res.json();
+      attempts++;
+    }
+
+    if (result.status === "succeeded") {
+      return NextResponse.json({ result: result.output });
+    } else {
+      return NextResponse.json({ error: "فشلت عملية المعالجة" }, { status: 500 });
+    }
+
   } catch (error) {
-    console.error("API Error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: "خطأ تقني في السيرفر" }, { status: 500 });
   }
 }
