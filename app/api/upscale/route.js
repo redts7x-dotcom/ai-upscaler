@@ -1,51 +1,30 @@
-export const runtime = 'edge'; // هذا السطر يسمح للعملية بأن تأخذ وقتاً أطول
+export const runtime = 'edge'; // ضروري جداً لتجنب انقطاع الاتصال في Vercel
 import { NextResponse } from "next/server";
-// باقي الكود...
-import { NextResponse } from 'next/server';
 import Replicate from "replicate";
 
 const replicate = new Replicate({
   auth: process.env.REPLICATE_API_TOKEN,
 });
 
-export async function POST(request) {
+export async function POST(req) {
   try {
-    const formData = await request.formData();
-    const file = formData.get("image");
-    // استقبال رقم التكبير من المستخدم (أو نعتبره 4 لو ما اختار)
-    const userScale = formData.get("scale") || 4; 
+    const formData = await req.formData();
+    const image = formData.get("image");
+    const scale = parseInt(formData.get("scale")) || 2;
 
-    if (!file) {
-      return NextResponse.json({ error: "لم يتم رفع صورة" }, { status: 400 });
-    }
+    if (!image) return NextResponse.json({ error: "No image provided" }, { status: 400 });
 
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    const imageBase64 = `data:${file.type};base64,${buffer.toString('base64')}`;
+    const bytes = await image.arrayBuffer();
+    const base64Image = `data:${image.type};base64,${Buffer.from(bytes).toString("base64")}`;
 
-    console.log(`جاري التكبير بمقياس ${userScale}x ...`);
-
-    let output = await replicate.run(
-      "daanelson/real-esrgan-a100:f94d7ed4a1f7e1ffed0d51e4089e4911609d5eeee5e874ef323d2c7562624bed",
-      {
-        input: {
-          image: imageBase64,
-          scale: Number(userScale), // تحويل النص لرقم
-          face_enhance: true,
-          tile: 256, // تفعيل التقطيع ضروري جداً عشان الـ 8K ما يفجر السيرفر
-        }
-      }
+    const output = await replicate.run(
+      "daanelson/real-esrgan-a100:334f6812837330a6157f3630733a25b2d5f81005110d7a96dbf20c4e704040a4",
+      { input: { image: base64Image, upscale: scale } }
     );
 
-    if (Array.isArray(output)) {
-      output = output[0];
-    }
-    const finalResult = String(output);
-
-    return NextResponse.json({ result: finalResult });
-
+    return NextResponse.json({ result: output });
   } catch (error) {
-    console.error("Error:", error);
-    return NextResponse.json({ error: "فشلت المعالجة، قد تكون الصورة كبيرة جداً لهذا الخيار" }, { status: 500 });
+    console.error("API Error:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
