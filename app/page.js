@@ -12,6 +12,15 @@ export default function Home() {
 
   const handleUpscale = async () => {
     if (!file) return;
+
+    // --- فحص حجم الملف (الحل لمشكلة الـ Token R) ---
+    // Vercel يرفض الملفات أكبر من 4.5 ميجابايت تقريباً
+    if (file.size > 4.5 * 1024 * 1024) {
+      alert("⚠️ عذراً، حجم الصورة كبير جداً!\nاستضافة Vercel المجانية تقبل صوراً أقل من 4.5 ميجابايت.\n\nالحل: جرب صورة أصغر قليلاً وستعمل فوراً.");
+      return;
+    }
+    // ------------------------------------------------
+
     setLoading(true); setResult(null);
     const formData = new FormData();
     formData.append("image", file);
@@ -19,14 +28,27 @@ export default function Home() {
 
     try {
       const res = await fetch('/api/upscale', { method: 'POST', body: formData });
-      const data = await res.json();
       
-      if (!res.ok) throw new Error(data.error || "فشل الاتصال");
-      if (data.result) setResult(data.result);
-      else throw new Error("لم تصل نتيجة");
+      // نقرأ الرد كنص أولاً لنفهم الخطأ إذا لم يكن JSON
+      const text = await res.text();
+      
+      try {
+        const data = JSON.parse(text); // محاولة قراءة البيانات
+        if (!res.ok) throw new Error(data.error || "رفض السيرفر الطلب");
+        if (data.result) setResult(data.result);
+        else throw new Error("لم تصل النتيجة");
+      } catch (jsonError) {
+        // هذا يعني أن الخطأ هو (413 Payload Too Large) أو خطأ سيرفر آخر
+        console.error("Server Error:", text);
+        if (text.includes("Too Large")) {
+            throw new Error("حجم الملف تجاوز الحد المسموح في Vercel");
+        } else {
+            throw new Error("خطأ في الاتصال بالسيرفر (تفاصيل في الكونسول)");
+        }
+      }
 
     } catch (e) { 
-      alert("خطأ: " + e.message); 
+      alert("تنبيه: " + e.message); 
     } 
     finally { setLoading(false); }
   };
@@ -74,7 +96,7 @@ export default function Home() {
           <button onClick={handleUpscale} style={{ marginTop: '40px', backgroundColor: '#fff', color: '#000', padding: '18px 60px', borderRadius: '40px', border: 'none', cursor: 'pointer', fontWeight: '800', fontSize: '1.1rem' }}>ابدأ التحسين الآن</button>
         )}
 
-        {loading && <p style={{ marginTop: '40px', color: '#fff', fontSize: '1.1rem' }}>جاري المعالجة... يرجى الانتظار ⏳</p>}
+        {loading && <p style={{ marginTop: '40px', color: '#fff', fontSize: '1.1rem' }}>جاري المعالجة بواسطة A100... (الصور الكبيرة تأخذ وقتاً) ⏳</p>}
 
         <AnimatePresence>
           {result && (
